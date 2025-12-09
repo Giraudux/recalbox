@@ -17,9 +17,9 @@ jobs:
       ARCH: ${{ matrix.arch }}
 
     steps:
-      - name: Run a multi-line script
-        run: |
+      - run: |
           echo "ARCH=$ARCH"
-          git clone --recurse-submodules https://gitlab.com/recalbox/recalbox.git recalbox-${ARCH}
-          cd recalbox-${ARCH}
+          git clone --recurse-submodules https://gitlab.com/recalbox/recalbox.git "recalbox-${ARCH}"
+          cd "recalbox-${ARCH}"
+          sed --in-place --expression="s/ -ti / /g" ./scripts/linux/recaldocker.sh
           ./scripts/linux/recaldocker.sh
