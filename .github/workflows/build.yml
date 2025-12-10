@@ -56,15 +56,18 @@ jobs:
     - run: |
         mkdir -p "${OUTPUTDIR}"
         cd "${WORKDIR}"
-        docker run --rm --tmpfs /tmp:exec --security-opt seccomp=unconfined \
-          -v "${WORKDIR}:/work" \
+        docker run --rm --security-opt seccomp=unconfined \
+          -w="${WORKDIR}" \
+          -v "${WORKDIR}:${WORKDIR}" \
           -v "${OUTPUTDIR}:/work/output" \
-          -v "/recalbox-builds/dl:/share/dl" \
-          -v "/recalbox-builds/ccaches/ccache-${ARCH}:/share/ccache" \
+          -v "${WORKDIR}/dl:/share/dl" \
+          -v "${WORKDIR}/host:/share/host" \
+          -v "/${WORKDIR}/ccache-${ARCH}:/share/ccache" \
           -e "ARCH=${ARCH}" \
           -e "RECALBOX_VERSION=${RECALBOX_VERSION}" \
           -e "RECALBOX_CCACHE_ENABLED=${CCACHE}" \
           -e "FORCE_UNSAFE_CONFIGURE=1" \
+          --user="$(id -u):$(id -g)" \
           "recalbox-${ARCH}"
 
     - run: df -h
