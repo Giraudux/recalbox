@@ -2,6 +2,12 @@ name: build
 
 on:
   workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag'
+        default: '10.0-patron-4'
+        required: true
+        type: string
 
 jobs:
 
@@ -11,15 +17,30 @@ jobs:
 
     strategy:
       matrix:
-        arch: [ "rpi5_64" ]
+        arch: [ 'rpi5_64' ]
 
     env:
       ARCH: ${{ matrix.arch }}
 
     steps:
-      - run: |
-          echo "ARCH=$ARCH"
-          git clone --recurse-submodules https://gitlab.com/recalbox/recalbox.git "recalbox-${ARCH}"
-          cd "recalbox-${ARCH}"
-          sed --in-place --expression="s/ -ti / /g" ./scripts/linux/recaldocker.sh
-          ./scripts/linux/recaldocker.sh
+
+    - id: cache-recalbox
+      uses: actions/cache@v4
+      with:
+        path: ${{ github.workspace }}/recalbox
+        key: ${{ inputs.tag }}
+
+    - if: steps.cache-recalbox.outputs.cache-hit != 'true'
+      run: |
+        git clone --depth 1 --shallow-submodules --recurse-submodules --branch "${{ inputs.tag }}" https://gitlab.com/recalbox/recalbox.git "${{ github.workspace }}/recalbox"
+        cd "${{ github.workspace }}/recalbox"
+        sed --in-place --expression="s/docker build/#docker build/g" ./scripts/linux/recaldocker.sh
+        sed --in-place --expression="s/ -ti / /g" ./scripts/linux/recaldocker.sh
+        cat ./scripts/linux/recaldocker.sh
+        sed --in-place --expression="s/BR2_CCACHE_INITIAL_SETUP=--max-size=.* /BR2_CCACHE_INITIAL_SETUP=--max-size=8G /g" ./Dockerfile
+        cat ./Dockerfile
+        docker build -t "recalbox-dev" .
+
+    - run: |
+        cd "${{ github.workspace }}/recalbox"
+        ./scripts/linux/recaldocker.sh
