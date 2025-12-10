@@ -21,24 +21,30 @@ jobs:
 
     env:
       ARCH: ${{ matrix.arch }}
+      RECALBOX_VERSION: ${{ matrix.arch }}
+      WORKDIR: ${{ github.workspace }}
+      OUTPUTDIR: ${{ github.workspace }}/output
+      CCACHE: "true"
 
     steps:
 
-    - id: cache-recalbox
-      uses: actions/cache@v4
-      with:
-        path: ${{ github.workspace }}/recalbox
-        key: ${{ inputs.tag }}
-
-    - if: steps.cache-recalbox.outputs.cache-hit != 'true'
-      run: |
-        git clone --depth 1 --shallow-submodules --recurse-submodules --branch "${{ inputs.tag }}" https://gitlab.com/recalbox/recalbox.git "${{ github.workspace }}/recalbox"
-        cd "${{ github.workspace }}/recalbox"
-        sed --in-place --expression="s/docker build/# docker build/g" ./scripts/linux/recaldocker.sh
-        sed --in-place --expression="s/ -ti / /g" ./scripts/linux/recaldocker.sh
-        sed --in-place --expression="s/BR2_CCACHE_INITIAL_SETUP=--max-size=[[:alnum:]]*/BR2_CCACHE_INITIAL_SETUP=--max-size=8G/g" ./Dockerfile
-        docker build -t "recalbox-dev" .
+    - run: df -h
 
     - run: |
-        cd "${{ github.workspace }}/recalbox"
-        ./scripts/linux/recaldocker.sh
+        git clone --depth 1 --shallow-submodules --recurse-submodules --branch "${{ inputs.tag }}" https://gitlab.com/recalbox/recalbox.git "${{ github.workspace }}"
+        docker build -t "recalbox-dev" .
+
+    - run: df -h
+
+    - run: |
+        mkdir -p "${OUTPUTDIR}"
+        docker run --rm --tmpfs /tmp:exec --security-opt seccomp=unconfined \
+          -v "${WORKDIR}:/work" \
+          -v "${OUTPUTDIR}:/work/output" \
+          -v "/recalbox-builds/dl:/share/dl" \
+          -v "/recalbox-builds/ccaches/ccache-${ARCH}:/share/ccache" \
+          -e "ARCH=${ARCH}" \
+          -e "RECALBOX_VERSION=${RECALBOX_VERSION}" \
+          -e "RECALBOX_CCACHE_ENABLED=${CCACHE}" \
+          -e "FORCE_UNSAFE_CONFIGURE=1" \
+          "recalbox-${ARCH}"
