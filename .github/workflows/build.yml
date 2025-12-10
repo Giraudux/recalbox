@@ -31,8 +31,8 @@ jobs:
     - run: df -h
 
     - run: |
-        git clone --depth 1 --shallow-submodules --recurse-submodules --branch "${{ inputs.tag }}" https://gitlab.com/recalbox/recalbox.git "${{ github.workspace }}"
-        docker build -t "recalbox-dev" .
+        git clone --depth 1 --shallow-submodules --recurse-submodules --branch "${{ inputs.tag }}" https://gitlab.com/recalbox/recalbox.git "${WORKDIR}"
+        docker build -t "recalbox-dev" "${WORKDIR}"
 
     - run: df -h
 
