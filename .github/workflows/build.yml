@@ -24,8 +24,10 @@ jobs:
       RECALBOX_VERSION: ${{ matrix.arch }}
       WORKDIR: ${{ github.workspace }}/recalbox
       OUTPUTDIR: ${{ github.workspace }}/output
+      CCACHEDIR: ${{ github.workspace }}/ccache-${{ matrix.arch }}
       DL: ${{ github.workspace }}/dl
       HOST: ${{ github.workspace }}/host
+      CCACHE: true
 
     steps:
 
@@ -63,9 +65,11 @@ jobs:
           -v "${OUTPUTDIR}:/work/output" \
           -v "${DL}:/share/dl" \
           -v "${HOST}:/share/host" \
+          -v "${CCACHEDIR}:/share/ccache" \
           -e "ARCH=${ARCH}" \
           -e "RECALBOX_VERSION=${RECALBOX_VERSION}" \
           -e "FORCE_UNSAFE_CONFIGURE=1" \
+          -e "RECALBOX_CCACHE_ENABLED=${CCACHE}" \
           --user="$(id -u):$(id -g)" \
           "recalbox-${ARCH}"
 
