@@ -42,9 +42,9 @@ jobs:
         include-hidden-files: true
     # Build Docker image
     - run: |
-        docker build --tag "recalbox-${{ inputs.arch }}" "${{ env.WORKDIR }}"
-        docker image save --output "${{ runner.temp }}/recalbox-${{ inputs.arch }}.tar" "recalbox-${{ inputs.arch }}"
+        docker build --tag recalbox "${{ env.WORKDIR }}"
+        docker image save --output "${{ runner.temp }}/recalbox.tar" recalbox
     - uses: actions/upload-artifact@v4
       with:
         name: docker-${{ inputs.tag }}-${{ inputs.arch }}
-        path: "${{ runner.temp }}/recalbox-${{ inputs.arch }}.tar"
+        path: "${{ runner.temp }}/recalbox.tar"
