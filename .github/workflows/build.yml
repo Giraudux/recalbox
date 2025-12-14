@@ -70,6 +70,7 @@ jobs:
         set -x
         docker load --input "${{ runner.temp }}/recalbox.tar"
         rm "${{ runner.temp }}/recalbox.tar"
+        cd "${{ env.WORKDIR }}"
         docker run --rm --security-opt seccomp=unconfined \
           -w="${{ env.WORKDIR }}" \
           -v "${{ env.WORKDIR }}:${{ env.WORKDIR }}" \
