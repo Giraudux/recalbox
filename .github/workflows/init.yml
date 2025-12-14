@@ -23,14 +23,14 @@ on:
         type: string
 
 jobs:
-
   init:
-
     runs-on: ubuntu-latest
-
     env:
       WORKDIR: ${{ github.workspace }}/recalbox
-
+      OUTPUTDIR: ${{ github.workspace }}/output
+      CCACHEDIR: ${{ github.workspace }}/ccache
+      DL: ${{ github.workspace }}/dl
+      HOST: ${{ github.workspace }}/host
     steps:
     # Clone repo
     - run: |
@@ -47,4 +47,27 @@ jobs:
     - uses: actions/upload-artifact@v4
       with:
         name: docker-${{ inputs.tag }}-${{ inputs.arch }}
-        path: "${{ runner.temp }}/recalbox.tar"
+        path: ${{ runner.temp }}/recalbox.tar
+    # Create directories
+    - run: |
+        mkdir --parents "${{ env.OUTPUTDIR }}" "${{ env.CCACHEDIR }}" "${{ env.DL }}" "${{ env.HOST }}"
+    - uses: actions/upload-artifact@v4
+      with:
+        name: outdir-${{ inputs.tag }}-${{ inputs.arch }}
+        path: ${{ env.OUTPUTDIR }}
+        include-hidden-files: true
+    - uses: actions/upload-artifact@v4
+      with:
+        name: ccachedir-${{ inputs.tag }}-${{ inputs.arch }}
+        path: ${{ env.CCACHEDIR }}
+        include-hidden-files: true
+    - uses: actions/upload-artifact@v4
+      with:
+        name: dl-${{ inputs.tag }}-${{ inputs.arch }}
+        path: ${{ env.DL }}
+        include-hidden-files: true
+    - uses: actions/upload-artifact@v4
+      with:
+        name: host-${{ inputs.tag }}-${{ inputs.arch }}
+        path: ${{ env.HOST }}
+        include-hidden-files: true

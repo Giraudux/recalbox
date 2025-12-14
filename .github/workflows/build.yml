@@ -8,31 +8,29 @@ on:
         default: '10.0-patron-4'
         required: true
         type: string
+      arch:
+        description: 'Architecture'
+        default: 'rpi5_64'
+        required: true
+        type: string
 
 jobs:
-
+  init:
+    uses: ./.github/workflows/init.yml
+    with:
+      tag: ${{ inputs.tag }}
+      arch: ${{ inputs.arch }}
   build:
-
     runs-on: ubuntu-latest
-
-    strategy:
-      matrix:
-        arch: [ 'rpi5_64' ]
-
     env:
-      ARCH: ${{ matrix.arch }}
-      RECALBOX_VERSION: ${{ matrix.arch }}
+      RECALBOX_VERSION: ${{ inputs.tag }}
       WORKDIR: ${{ github.workspace }}/recalbox
       OUTPUTDIR: ${{ github.workspace }}/output
-      CCACHEDIR: ${{ github.workspace }}/ccache-${{ matrix.arch }}
+      CCACHEDIR: ${{ github.workspace }}/ccache
       DL: ${{ github.workspace }}/dl
       HOST: ${{ github.workspace }}/host
       CCACHE: true
-
     steps:
-
-    - run: df -h
-
     - uses: endersonmenezes/free-disk-space@v3
       with:
         remove_android: true
@@ -46,31 +44,71 @@ jobs:
         rm_cmd: "rmz"
         rmz_version: "3.1.1"
         testing: false
-
-    - run: df -h
-
+    # Download artifacts
+    - uses: actions/download-artifact@v5
+      with:
+        name: workdir-${{ inputs.tag }}-${{ inputs.arch }}
+    - uses: actions/download-artifact@v5
+      with:
+        name: outdir-${{ inputs.tag }}-${{ inputs.arch }}
+    - uses: actions/download-artifact@v5
+      with:
+        name: ccachedir-${{ inputs.tag }}-${{ inputs.arch }}
+    - uses: actions/download-artifact@v5
+      with:
+        name: dl-${{ inputs.tag }}-${{ inputs.arch }}
+    - uses: actions/download-artifact@v5
+      with:
+        name: host-${{ inputs.tag }}-${{ inputs.arch }}
+    - uses: actions/download-artifact@v5
+      with:
+        name: docker-${{ inputs.tag }}-${{ inputs.arch }}
+        path: ${{ runner.temp }}
+    # Build
     - run: |
-        git clone --depth 1 --shallow-submodules --recurse-submodules --branch "${{ inputs.tag }}" https://gitlab.com/recalbox/recalbox.git "${WORKDIR}"
-        docker build -t "recalbox-${ARCH}" "${WORKDIR}"
-        docker builder prune --all --force
-
-    - run: df -h
-
-    - run: |
-        mkdir -p "${OUTPUTDIR}" "${CCACHEDIR}" "${DL}" "${HOST}"
-        cd "${WORKDIR}"
+        docker image import "${{ runner.temp }}/recalbox.tar"
+        rm "${{ runner.temp }}/recalbox.tar"
         docker run --rm --security-opt seccomp=unconfined \
-          -w="${WORKDIR}" \
-          -v "${WORKDIR}:${WORKDIR}" \
-          -v "${OUTPUTDIR}:/work/output" \
-          -v "${DL}:/share/dl" \
-          -v "${HOST}:/share/host" \
-          -v "${CCACHEDIR}:/share/ccache" \
-          -e "ARCH=${ARCH}" \
-          -e "RECALBOX_VERSION=${RECALBOX_VERSION}" \
+          -w="${{ env.WORKDIR }}" \
+          -v "${{ env.WORKDIR }}:${{ env.WORKDIR }}" \
+          -v "${{ env.OUTPUTDIR }}:/work/output" \
+          -v "${{ env.DL }}:/share/dl" \
+          -v "${{ env.HOST }}:/share/host" \
+          -v "${{ env.CCACHEDIR }}:/share/ccache" \
+          -e "ARCH=${{ inputs.arch }}" \
+          -e "RECALBOX_VERSION=${{ env.RECALBOX_VERSION }}" \
           -e "FORCE_UNSAFE_CONFIGURE=1" \
-          -e "RECALBOX_CCACHE_ENABLED=${CCACHE}" \
+          -e "RECALBOX_CCACHE_ENABLED=${{ env.CCACHE }}" \
           --user="$(id -u):$(id -g)" \
-          "recalbox-${ARCH}"
-
-    - run: df -h
+          recalbox
+    # Upload artifacts
+    - uses: actions/upload-artifact@v4
+      with:
+        name: workdir-${{ inputs.tag }}-${{ inputs.arch }}
+        path: ${{ env.WORKDIR }}
+        include-hidden-files: true
+        overwrite: true
+    - uses: actions/upload-artifact@v4
+      with:
+        name: outdir-${{ inputs.tag }}-${{ inputs.arch }}
+        path: ${{ env.OUTPUTDIR }}
+        include-hidden-files: true
+        overwrite: true
+    - uses: actions/upload-artifact@v4
+      with:
+        name: ccachedir-${{ inputs.tag }}-${{ inputs.arch }}
+        path: ${{ env.CCACHEDIR }}
+        include-hidden-files: true
+        overwrite: true
+    - uses: actions/upload-artifact@v4
+      with:
+        name: dl-${{ inputs.tag }}-${{ inputs.arch }}
+        path: ${{ env.DL }}
+        include-hidden-files: true
+        overwrite: true
+    - uses: actions/upload-artifact@v4
+      with:
+        name: host-${{ inputs.tag }}-${{ inputs.arch }}
+        path: ${{ env.HOST }}
+        include-hidden-files: true
+        overwrite: true
