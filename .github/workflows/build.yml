@@ -67,7 +67,8 @@ jobs:
         path: ${{ runner.temp }}
     # Build
     - run: |
-        docker image import "${{ runner.temp }}/recalbox.tar" recalbox
+        set -x
+        docker load --input "${{ runner.temp }}/recalbox.tar"
         rm "${{ runner.temp }}/recalbox.tar"
         docker run --rm --security-opt seccomp=unconfined \
           -w="${{ env.WORKDIR }}" \
