@@ -68,6 +68,7 @@ jobs:
     # Build
     - run: |
         set -x
+        ls -a
         docker load --input "${{ runner.temp }}/recalbox.tar"
         rm "${{ runner.temp }}/recalbox.tar"
         cd "${{ env.WORKDIR }}"
