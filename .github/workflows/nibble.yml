@@ -67,12 +67,13 @@ jobs:
         sudo zpool import -d "${{ runner.temp }}" pool
     # Build
     - run: |
+        set -x
         readonly build_duration_sec=1200
         current_time_sec=$(date +%s)
         end_time_sec=$((current_time_sec + build_duration_sec))
         (sleep "$build_duration_sec" ; echo "exit 1" > "${{ env.WORKDIR }}/output/host/bin/make" && chmod +x "${{ env.WORKDIR }}/output/host/bin/make") &
+        cd "${{ env.WORKDIR }}"
         if docker run --rm --security-opt seccomp=unconfined \
-          -w "${{ env.WORKDIR }}" \
           -v "${{ env.WORKDIR }}:/work" \
           -v "${{ env.OUTPUTDIR }}:/work/output" \
           -v "${{ env.DL }}:/share/dl" \
