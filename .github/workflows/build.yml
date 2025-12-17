@@ -32,3 +32,9 @@ jobs:
     with:
       tag: ${{ inputs.tag }}
       arch: ${{ inputs.arch }}
+  nibble3:
+    needs: nibble2
+    uses: ./.github/workflows/nibble.yml
+    with:
+      tag: ${{ inputs.tag }}
+      arch: ${{ inputs.arch }}
