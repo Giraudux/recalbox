@@ -35,7 +35,7 @@ jobs:
     # Install dependencies
     - run: |
         sudo apt update
-        sudo apt install -y zfsutils-linux    
+        sudo apt install -y zfsutils-linux tree
     # Import docker image
     - uses: actions/download-artifact@v5
       with:
@@ -67,8 +67,12 @@ jobs:
         sudo zpool import -d "${{ runner.temp }}" pool
     # Build
     - run: |
-        cd "${{ env.WORKDIR }}"
-        docker run --rm --security-opt seccomp=unconfined \
+        readonly build_duration_sec=1200
+        current_time_sec=$(date +%s)
+        end_time_sec=$((current_time_sec + build_duration_sec))
+        (sleep "$build_duration_sec" ; echo "exit 1" > "${{ env.WORKDIR }}/output/host/bin/make" && chmod +x "${{ env.WORKDIR }}/output/host/bin/make") &
+        if docker run --rm --security-opt seccomp=unconfined \
+          -w "${{ env.WORKDIR }}" \
           -v "${{ env.WORKDIR }}:/work" \
           -v "${{ env.OUTPUTDIR }}:/work/output" \
           -v "${{ env.DL }}:/share/dl" \
@@ -78,6 +82,16 @@ jobs:
           -e "FORCE_UNSAFE_CONFIGURE=1" \
           --user="$(id -u):$(id -g)" \
           recalbox
+        then
+          tree "${{ env.OUTPUTDIR }}"
+        else
+          current_time_sec=$(date +%s)
+          if [ "$current_time_sec" -lt "$end_time_sec" ]
+          then
+            exit 1
+          fi
+        fi
+        rm "${{ env.WORKDIR }}/output/host/bin/make"
     # Export zpool
     - run: |
         sudo zpool export pool
