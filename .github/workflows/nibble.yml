@@ -65,7 +65,7 @@ jobs:
         (sleep "$timeout_sec" ; docker stop recalbox) &
         cd "${{ env.WORKDIR }}"
         if docker run --rm --security-opt seccomp=unconfined \
-          --name recalbox
+          --name recalbox \
           -v "${{ env.WORKDIR }}:/work" \
           -v "${{ env.OUTPUTDIR }}:/work/output" \
           -v "${{ env.DL }}:/share/dl" \
