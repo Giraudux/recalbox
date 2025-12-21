@@ -10,7 +10,7 @@ jobs:
     # Install dependencies
     - run: |
         sudo apt update
-        sudo apt install -y zfsutils-linux qemu-tils
+        sudo apt install -y zfsutils-linux qemu-utils
         qemu-img create -f qcow2 test0.qcow2 50G
         sudo qemu-nbd -c /dev/nbd0 -f qcow2 test0.qcow2
         sudo zpool create -O compression=zstd test0 /dev/nbd0
