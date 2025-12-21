@@ -1,0 +1,24 @@
+name: sandbox
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test0:
+    runs-on: ubuntu-latest
+    steps:
+    # Install dependencies
+    - run: |
+        sudo apt update
+        sudo apt install -y zfsutils-linux qemu-tils
+        qemu-img create -f qcow2 test0.qcow2 50G
+        sudo qemu-nbd -c /dev/nbd0 -f qcow2 test0.qcow2
+        sudo zpool create -O compression=zstd test0 /dev/nbd0
+        sudo chown "$USER:$USER" /test0/
+        touch /test0/hello
+        sudo zpool export test0
+        sleep 10
+        sudo zpool import -d /dev/ test0
+        touch /test0/world
+        sudo zpool export test0
+        sudo qemu-nbd -d /dev/nbd0
