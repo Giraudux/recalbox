@@ -14,7 +14,7 @@ jobs:
         sudo apt install -y zfsutils-linux qemu-utils
         qemu-img create -f qcow2 test0.qcow2 50G
         ls /dev/ | grep nbd || true
-        sudo modprobe nbd nbds_max=1 max_part=8
+        sudo modprobe nbd nbds_max=1
         ls /dev/ | grep nbd || true
         sudo qemu-nbd -c /dev/nbd0 -f qcow2 test0.qcow2
         sudo zpool create -O compression=zstd test0 /dev/nbd0
@@ -25,5 +25,7 @@ jobs:
         sleep 10
         sudo zpool import -d /dev/ test0
         touch /test0/world
+        ls -lh /test0/
         sudo zpool export test0
         sudo qemu-nbd -d /dev/nbd0
+        ls -lh
