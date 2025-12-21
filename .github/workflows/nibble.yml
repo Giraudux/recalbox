@@ -60,7 +60,7 @@ jobs:
     - run: |
         set -x
         sudo modprobe nbd nbds_max=1
-        sudo qemu-nbd -c /dev/nbd0 -f "qcow2 ${{ runner.temp }}/recalbox.qcow2"
+        sudo qemu-nbd -c /dev/nbd0 -f qcow2 "${{ runner.temp }}/recalbox.qcow2"
         sudo zpool import -d /dev/ pool
     # Build
     - run: |
