@@ -79,6 +79,11 @@ jobs:
     # Clone repo
     - run: |
         git clone --depth 1 --shallow-submodules --recurse-submodules --branch "${{ inputs.tag }}" https://gitlab.com/recalbox/recalbox.git "${{ env.WORKDIR }}"
+    # Apply patch
+    - uses: actions/checkout@v6
+    - run: |
+        set -x
+        (cd "${{ env.WORKDIR }}" && git apply "${{ github.repository }}/patch/bass24.patch") || true
     # Export zpool
     - run: |
         zfs get all pool
