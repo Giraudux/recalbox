@@ -50,7 +50,7 @@ jobs:
     # Install dependencies
     - run: |
         sudo apt update
-        sudo apt install -y zfsutils-linux qemu-utils
+        sudo apt install --yes zfsutils-linux qemu-utils
     # Free disk space
     - uses: endersonmenezes/free-disk-space@v3
       with:
@@ -66,13 +66,13 @@ jobs:
         rmz_version: "3.1.1"
         testing: false
     # Free space
-    - run: df -h
+    - run: df --human-readable
     # Create zpool
     - run: |
         set -x
         sudo modprobe nbd nbds_max=1
-        qemu-img create -f qcow2 "${{ runner.temp }}/recalbox.qcow2" 55G
-        sudo qemu-nbd -c /dev/nbd0 -f qcow2 "${{ runner.temp }}/recalbox.qcow2"
+        qemu-img create -f qcow2 "${{ runner.temp }}/recalbox.qcow2" 50G
+        sudo qemu-nbd --connect /dev/nbd0 --format qcow2 "${{ runner.temp }}/recalbox.qcow2"
         sudo zpool create -O compression=zstd pool /dev/nbd0
         sudo chown "$USER:$USER" /pool/
         mkdir "${{ env.OUTPUTDIR }}" "${{ env.DL }}" "${{ env.HOST }}"
@@ -83,7 +83,7 @@ jobs:
     - run: |
         zfs get all pool
         sudo zpool export pool
-        sudo qemu-nbd -d /dev/nbd0
+        sudo qemu-nbd --disconnect /dev/nbd0
     - uses: actions/upload-artifact@v4
       with:
         name: qcow2-${{ inputs.tag }}-${{ inputs.arch }}

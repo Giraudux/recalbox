@@ -26,7 +26,7 @@ jobs:
     # Install dependencies
     - run: |
         sudo apt update
-        sudo apt install -y zfsutils-linux qemu-utils tree
+        sudo apt install --yes zfsutils-linux qemu-utils tree
     # Import docker image
     - uses: actions/download-artifact@v5
       with:
@@ -51,7 +51,7 @@ jobs:
         testing: false
     # Disk space available
     - if: always()
-      run: df -h
+      run: df --human-readable
     # Import zpool
     - uses: actions/download-artifact@v5
       with:
@@ -60,8 +60,10 @@ jobs:
     - run: |
         set -x
         sudo modprobe nbd nbds_max=1
-        sudo qemu-nbd -c /dev/nbd0 -f qcow2 "${{ runner.temp }}/recalbox.qcow2"
-        sudo zpool import -d /dev/ pool
+        sudo qemu-nbd --connect /dev/nbd0 --format qcow2 "${{ runner.temp }}/recalbox.qcow2"
+        mkdir --parents "${{ runner.temp }}/dev"
+        ln --symbolic /dev/nbd0 "${{ runner.temp }}/dev/"
+        sudo zpool import -d "${{ runner.temp }}/dev/" pool
         zfs get all pool
     # Build
     - run: |
@@ -74,14 +76,14 @@ jobs:
         cd "${{ env.WORKDIR }}"
         if docker run --rm --security-opt seccomp=unconfined \
           --name recalbox \
-          -v "${{ env.WORKDIR }}:/work" \
-          -v "${{ env.OUTPUTDIR }}:/work/output" \
-          -v "${{ env.DL }}:/share/dl" \
-          -v "${{ env.HOST }}:/share/host" \
-          -e "ARCH=${{ inputs.arch }}" \
-          -e "RECALBOX_VERSION=${{ env.RECALBOX_VERSION }}" \
-          -e "FORCE_UNSAFE_CONFIGURE=1" \
-          --user="$(id -u):$(id -g)" \
+          --volume "${{ env.WORKDIR }}:/work" \
+          --volume "${{ env.OUTPUTDIR }}:/work/output" \
+          --volume "${{ env.DL }}:/share/dl" \
+          --volume "${{ env.HOST }}:/share/host" \
+          --env "ARCH=${{ inputs.arch }}" \
+          --env "RECALBOX_VERSION=${{ env.RECALBOX_VERSION }}" \
+          --env "FORCE_UNSAFE_CONFIGURE=1" \
+          --user "$(id --user):$(id --group)" \
           recalbox
         then
           tree "${{ env.OUTPUTDIR }}"
@@ -95,12 +97,12 @@ jobs:
         rm "$stub_cmd"
     # Disk space available
     - if: always()
-      run: df -h
+      run: df --human-readable
     # Export zpool
     - run: |
         zfs get all pool
         sudo zpool export pool
-        sudo qemu-nbd -d /dev/nbd0
+        sudo qemu-nbd --disconnect /dev/nbd0
     - uses: actions/upload-artifact@v4
       with:
         name: qcow2-${{ inputs.tag }}-${{ inputs.arch }}
