@@ -68,11 +68,10 @@ jobs:
     # Build
     - run: |
         set -x
-        readonly stub_cmd="${{ env.OUTPUTDIR }}/host/bin/make"
         readonly timeout_sec="${{ inputs.timeout }}"
         current_time_sec=$(date +%s)
         end_time_sec=$((current_time_sec + timeout_sec))
-        (sleep "$timeout_sec" ; echo "exit 1" > "$stub_cmd" && chmod +x "$stub_cmd") &
+        (sleep "$timeout_sec" ; docker exec --user root recalbox sh -c "chmod -x /usr/bin/make") &
         cd "${{ env.WORKDIR }}"
         if docker run --rm --security-opt seccomp=unconfined \
           --name recalbox \
@@ -94,7 +93,6 @@ jobs:
             exit 1
           fi
         fi
-        rm "$stub_cmd"
     # Disk space available
     - if: always()
       run: df --human-readable
