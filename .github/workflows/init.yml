@@ -9,18 +9,6 @@ on:
       arch:
         required: true
         type: string
-  workflow_dispatch:
-    inputs:
-      tag:
-        description: 'Tag'
-        default: '10.0-patron-4'
-        required: true
-        type: string
-      arch:
-        description: 'Architecture'
-        default: 'rpi5_64'
-        required: true
-        type: string
 
 jobs:
   docker:
