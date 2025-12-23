@@ -24,7 +24,7 @@ on:
 
 jobs:
   docker:
-    runs-on: ubuntu-slim
+    runs-on: ubuntu-latest
     env:
       WORKDIR: ${{ github.workspace }}/recalbox
     steps:
@@ -40,7 +40,7 @@ jobs:
         name: docker-${{ inputs.tag }}-${{ inputs.arch }}
         path: ${{ runner.temp }}/recalbox.tar
   disk:
-    runs-on: ubuntu-slim
+    runs-on: ubuntu-latest
     env:
       WORKDIR: /pool/recalbox
       OUTPUTDIR: /pool/output
