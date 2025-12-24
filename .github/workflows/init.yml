@@ -34,6 +34,7 @@ jobs:
       OUTPUTDIR: /pool/output
       DL: /pool/dl
       HOST: /pool/host
+      NPM_PREFIX_OUTPUT_PATH: /pool/output/build/.npm
     steps:
     # Install dependencies
     - run: |
@@ -42,11 +43,11 @@ jobs:
     - run: |
         set -x
         sudo modprobe nbd nbds_max=1
-        qemu-img create -f qcow2 "${{ runner.temp }}/recalbox.qcow2" 50G
+        qemu-img create -f qcow2 "${{ runner.temp }}/recalbox.qcow2" 64G
         sudo qemu-nbd --connect /dev/nbd0 --format qcow2 "${{ runner.temp }}/recalbox.qcow2"
         sudo zpool create -O compression=zstd pool /dev/nbd0
         sudo chown "$USER:$USER" /pool/
-        mkdir "${{ env.OUTPUTDIR }}" "${{ env.DL }}" "${{ env.HOST }}"
+        mkdir "${{ env.OUTPUTDIR }}" "${{ env.DL }}" "${{ env.HOST }}" "${{ env.NPM_PREFIX_OUTPUT_PATH }}"
     # Clone repo
     - run: |
         git clone --depth 1 --shallow-submodules --recurse-submodules --branch "${{ inputs.tag }}" https://gitlab.com/recalbox/recalbox.git "${{ env.WORKDIR }}"

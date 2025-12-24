@@ -22,6 +22,7 @@ jobs:
       OUTPUTDIR: /pool/output
       DL: /pool/dl
       HOST: /pool/host
+      NPM_PREFIX_OUTPUT_PATH: /pool/output/build/.npm
     steps:
     # Install dependencies
     - run: |
@@ -79,6 +80,7 @@ jobs:
           --volume "${{ env.OUTPUTDIR }}:/work/output" \
           --volume "${{ env.DL }}:/share/dl" \
           --volume "${{ env.HOST }}:/share/host" \
+          --volume "${{ env.NPM_PREFIX_OUTPUT_PATH }}:/.npm" \
           --env "ARCH=${{ inputs.arch }}" \
           --env "RECALBOX_VERSION=${{ env.RECALBOX_VERSION }}" \
           --env "FORCE_UNSAFE_CONFIGURE=1" \
