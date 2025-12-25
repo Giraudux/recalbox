@@ -121,7 +121,7 @@ jobs:
         cd "/pool/work/recalbox/"
         if docker run --rm --security-opt seccomp=unconfined \
           --name recalbox \
-          --volume "/pool/work/:/work/" \
+          --volume "/pool/work/recalbox/:/work/" \
           --volume "/pool/output/:/work/output/" \
           --volume "/pool/dl/:/share/dl/" \
           --volume "/pool/host/:/share/host/" \
