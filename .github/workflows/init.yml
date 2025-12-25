@@ -37,7 +37,7 @@ jobs:
     - run: |
         set -x
         sudo modprobe nbd nbds_max=1
-        qemu-img create -f qcow2 "work-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2" 64G
+        qemu-img create -f qcow2 "${{ runner.temp }}/work-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2" 64G
         sudo qemu-nbd --connect /dev/nbd0 --format qcow2 "${{ runner.temp }}/work-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2"
         sudo mkdir --parents /pool/
         sudo zpool create -O compression=zstd -m /pool/work work /dev/nbd0
@@ -69,7 +69,7 @@ jobs:
     - run: |
         set -x
         sudo modprobe nbd nbds_max=1
-        qemu-img create -f qcow2 "output-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2" 64G
+        qemu-img create -f qcow2 "${{ runner.temp }}/output-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2" 64G
         sudo qemu-nbd --connect /dev/nbd0 --format qcow2 "${{ runner.temp }}/output-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2"
         sudo mkdir --parents /pool/
         sudo zpool create -O compression=zstd -m /pool/output output /dev/nbd0

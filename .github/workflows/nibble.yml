@@ -156,8 +156,14 @@ jobs:
         sudo qemu-nbd --disconnect "${{ runner.temp }}/dev/output"
     - uses: actions/upload-artifact@v4
       with:
-        name: qcow2-${{ inputs.tag }}-${{ inputs.arch }}
-        path: ${{ runner.temp }}/recalbox.qcow2
+        name: work-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2
+        path: ${{ runner.temp }}/work-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2
+        compression-level: 0
+        overwrite: true
+    - uses: actions/upload-artifact@v4
+      with:
+        name: output-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2
+        path: ${{ runner.temp }}/output-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2
         compression-level: 0
         overwrite: true
     - uses: actions/cache/save@v4
