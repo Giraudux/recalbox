@@ -65,7 +65,7 @@ jobs:
         set -x
         qemu-img create -f qcow2 "${{ runner.temp }}/dl-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2" 10G
         sudo qemu-nbd --connect "${{ runner.temp }}/dev/dl" --format qcow2 "${{ runner.temp }}/dl-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2"
-        sudo zpool create -O compression=zstd -m /pool/dl/ dl "${{ runner.temp }}/dev/dl"
+        sudo zpool create -O compression=zstd-22 -m /pool/dl/ dl "${{ runner.temp }}/dev/dl"
         sudo chown "$USER:$USER" /pool/dl/
     - if: steps.cache-dl.outputs.cache-hit == 'true'
       run: |
@@ -73,25 +73,6 @@ jobs:
         sudo qemu-nbd --connect "${{ runner.temp }}/dev/dl" --format qcow2 "${{ runner.temp }}/dl-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2"
         sudo zpool import -d "${{ runner.temp }}/dev/" dl
         zfs get all dl
-    # Cache HOST
-    - uses: actions/cache/restore@v4
-      id: cache-host
-      with:
-        path: ${{ runner.temp }}/host-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2
-        key: host-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2
-    - if: steps.cache-host.outputs.cache-hit != 'true'
-      run: |
-        set -x
-        qemu-img create -f qcow2 "${{ runner.temp }}/host-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2" 10G
-        sudo qemu-nbd --connect "${{ runner.temp }}/dev/host" --format qcow2 "${{ runner.temp }}/host-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2"
-        sudo zpool create -O compression=zstd -m /pool/host/ host "${{ runner.temp }}/dev/host"
-        sudo chown "$USER:$USER" /pool/host/
-    - if: steps.cache-host.outputs.cache-hit == 'true'
-      run: |
-        set -x
-        sudo qemu-nbd --connect "${{ runner.temp }}/dev/host" --format qcow2 "${{ runner.temp }}/host-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2"
-        sudo zpool import -d "${{ runner.temp }}/dev/" host
-        zfs get all host
     # Import zpool
     - uses: actions/download-artifact@v5
       with:
@@ -102,6 +83,15 @@ jobs:
         sudo qemu-nbd --connect "${{ runner.temp }}/dev/work" --format qcow2 "${{ runner.temp }}/work-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2"
         sudo zpool import -d "${{ runner.temp }}/dev/" work
         zfs get all work
+    - uses: actions/download-artifact@v5
+      with:
+        name: host-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2
+        path: ${{ runner.temp }}
+    - run: |
+        set -x
+        sudo qemu-nbd --connect "${{ runner.temp }}/dev/host" --format qcow2 "${{ runner.temp }}/work-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2"
+        sudo zpool import -d "${{ runner.temp }}/dev/" host
+        zfs get all host
     - uses: actions/download-artifact@v5
       with:
         name: output-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2
@@ -142,10 +132,16 @@ jobs:
         fi
     # Disk space available
     - if: always()
-      run: df --human-readable
+      run: |
+        ls --human-readable -l "${{ runner.temp }}"
+        df --human-readable
     # Export zpool
     - run: |
-        zfs get all pool
+        set -x
+        zfs get all work
+        zfs get all host
+        zfs get all dl
+        zfs get all output
         sudo zpool export work
         sudo zpool export host
         sudo zpool export dl
@@ -162,6 +158,12 @@ jobs:
         overwrite: true
     - uses: actions/upload-artifact@v4
       with:
+        name: host-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2
+        path: ${{ runner.temp }}/host-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2
+        compression-level: 0
+        overwrite: true
+    - uses: actions/upload-artifact@v4
+      with:
         name: output-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2
         path: ${{ runner.temp }}/output-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2
         compression-level: 0
@@ -170,7 +172,3 @@ jobs:
       with:
         path: ${{ runner.temp }}/dl-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2
         key: dl-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2
-    - uses: actions/cache/save@v4
-      with:
-        path: ${{ runner.temp }}/host-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2
-        key: host-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2
