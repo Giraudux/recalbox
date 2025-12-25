@@ -16,26 +16,27 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    env:
-      RECALBOX_VERSION: ${{ inputs.tag }}
-      WORKDIR: /pool/recalbox
-      OUTPUTDIR: /pool/output
-      DL: /pool/dl
-      HOST: /pool/host
-      NPM_PREFIX_OUTPUT_PATH: /pool/output/build/.npm
     steps:
     # Install dependencies
     - run: |
+        set -x
         sudo apt update
         sudo apt install --yes zfsutils-linux qemu-utils tree
+        sudo modprobe nbd nbds_max=4
+        sudo mkdir --parents /pool/
+        mkdir --parents "${{ runner.temp }}/dev/"
+        ln --symbolic /dev/nbd0 "${{ runner.temp }}/dev/work"
+        ln --symbolic /dev/nbd1 "${{ runner.temp }}/dev/host"
+        ln --symbolic /dev/nbd2 "${{ runner.temp }}/dev/dl"
+        ln --symbolic /dev/nbd3 "${{ runner.temp }}/dev/output"
     # Import docker image
     - uses: actions/download-artifact@v5
       with:
-        name: docker-${{ inputs.tag }}-${{ inputs.arch }}
+        name: recalbox-${{ inputs.tag }}-${{ inputs.arch }}.tar
         path: ${{ runner.temp }}
     - run: |
-        docker load --input "${{ runner.temp }}/recalbox.tar"
-        rm "${{ runner.temp }}/recalbox.tar"
+        docker load --input "${{ runner.temp }}/recalbox-${{ inputs.tag }}-${{ inputs.arch }}.tar"
+        rm "${{ runner.temp }}/recalbox-${{ inputs.tag }}-${{ inputs.arch }}.tar"
     # Free disk space
     - uses: endersonmenezes/free-disk-space@v3
       with:
@@ -53,19 +54,63 @@ jobs:
     # Disk space available
     - if: always()
       run: df --human-readable
+    # Cache DL
+    - uses: actions/cache/restore@v4
+      id: cache-dl
+      with:
+        path: ${{ runner.temp }}/dl-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2
+        key: dl-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2
+    - if: steps.cache-dl.outputs.cache-hit != 'true'
+      run: |
+        set -x
+        qemu-img create -f qcow2 "${{ runner.temp }}/dl-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2" 10G
+        sudo qemu-nbd --connect "${{ runner.temp }}/dev/dl" --format qcow2 "${{ runner.temp }}/dl-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2"
+        sudo zpool create -O compression=zstd -m /pool/dl/ dl "${{ runner.temp }}/dev/dl"
+        sudo chown "$USER:$USER" /pool/dl/
+    - if: steps.cache-dl.outputs.cache-hit == 'true'
+      run: |
+        set -x
+        sudo qemu-nbd --connect "${{ runner.temp }}/dev/dl" --format qcow2 "${{ runner.temp }}/dl-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2"
+        sudo zpool import -d "${{ runner.temp }}/dev/" dl
+        zfs get all dl
+    # Cache HOST
+    - uses: actions/cache/restore@v4
+      id: cache-host
+      with:
+        path: ${{ runner.temp }}/host-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2
+        key: host-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2
+    - if: steps.cache-host.outputs.cache-hit != 'true'
+      run: |
+        set -x
+        qemu-img create -f qcow2 "${{ runner.temp }}/host-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2" 10G
+        sudo qemu-nbd --connect "${{ runner.temp }}/dev/host" --format qcow2 "${{ runner.temp }}/host-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2"
+        sudo zpool create -O compression=zstd -m /pool/host/ host "${{ runner.temp }}/dev/host"
+        sudo chown "$USER:$USER" /pool/host/
+    - if: steps.cache-host.outputs.cache-hit == 'true'
+      run: |
+        set -x
+        sudo qemu-nbd --connect "${{ runner.temp }}/dev/host" --format qcow2 "${{ runner.temp }}/host-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2"
+        sudo zpool import -d "${{ runner.temp }}/dev/" host
+        zfs get all host
     # Import zpool
     - uses: actions/download-artifact@v5
       with:
-        name: qcow2-${{ inputs.tag }}-${{ inputs.arch }}
+        name: work-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2
         path: ${{ runner.temp }}
     - run: |
         set -x
-        sudo modprobe nbd nbds_max=1
-        sudo qemu-nbd --connect /dev/nbd0 --format qcow2 "${{ runner.temp }}/recalbox.qcow2"
-        mkdir --parents "${{ runner.temp }}/dev"
-        ln --symbolic /dev/nbd0 "${{ runner.temp }}/dev/"
-        sudo zpool import -d "${{ runner.temp }}/dev/" pool
-        zfs get all pool
+        sudo qemu-nbd --connect "${{ runner.temp }}/dev/work" --format qcow2 "${{ runner.temp }}/work-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2"
+        sudo zpool import -d "${{ runner.temp }}/dev/" work
+        zfs get all work
+    - uses: actions/download-artifact@v5
+      with:
+        name: output-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2
+        path: ${{ runner.temp }}
+    - run: |
+        set -x
+        sudo qemu-nbd --connect "${{ runner.temp }}/dev/output" --format qcow2 "${{ runner.temp }}/output-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2"
+        sudo zpool import -d "${{ runner.temp }}/dev/" output
+        zfs get all output
     # Build
     - run: |
         set -x
@@ -73,21 +118,21 @@ jobs:
         current_time_sec=$(date +%s)
         end_time_sec=$((current_time_sec + timeout_sec))
         (sleep "$timeout_sec" ; docker exec --user root recalbox sh -c "chmod -x /usr/bin/make") &
-        cd "${{ env.WORKDIR }}"
+        cd "/pool/work/"
         if docker run --rm --security-opt seccomp=unconfined \
           --name recalbox \
-          --volume "${{ env.WORKDIR }}:/work" \
-          --volume "${{ env.OUTPUTDIR }}:/work/output" \
-          --volume "${{ env.DL }}:/share/dl" \
-          --volume "${{ env.HOST }}:/share/host" \
-          --volume "${{ env.NPM_PREFIX_OUTPUT_PATH }}:/.npm" \
+          --volume "/pool/work/:/work/" \
+          --volume "/pool/output/:/work/output/" \
+          --volume "/pool/dl/:/share/dl/" \
+          --volume "/pool/host/:/share/host/" \
+          --volume "/pool/output/build/.npm:/.npm" \
           --env "ARCH=${{ inputs.arch }}" \
-          --env "RECALBOX_VERSION=${{ env.RECALBOX_VERSION }}" \
+          --env "RECALBOX_VERSION=${{ inputs.tag }}" \
           --env "FORCE_UNSAFE_CONFIGURE=1" \
           --user "$(id --user):$(id --group)" \
           recalbox
         then
-          tree "${{ env.OUTPUTDIR }}"
+          tree "/pool/output/"
         else
           current_time_sec=$(date +%s)
           if [ "$current_time_sec" -lt "$end_time_sec" ]
@@ -101,11 +146,25 @@ jobs:
     # Export zpool
     - run: |
         zfs get all pool
-        sudo zpool export pool
-        sudo qemu-nbd --disconnect /dev/nbd0
+        sudo zpool export work
+        sudo zpool export host
+        sudo zpool export dl
+        sudo zpool export output
+        sudo qemu-nbd --disconnect "${{ runner.temp }}/dev/work"
+        sudo qemu-nbd --disconnect "${{ runner.temp }}/dev/host"
+        sudo qemu-nbd --disconnect "${{ runner.temp }}/dev/dl"
+        sudo qemu-nbd --disconnect "${{ runner.temp }}/dev/output"
     - uses: actions/upload-artifact@v4
       with:
         name: qcow2-${{ inputs.tag }}-${{ inputs.arch }}
         path: ${{ runner.temp }}/recalbox.qcow2
         compression-level: 0
         overwrite: true
+    - uses: actions/cache/save@v4
+      with:
+        path: ${{ runner.temp }}/dl-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2
+        key: dl-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2
+    - uses: actions/cache/save@v4
+      with:
+        path: ${{ runner.temp }}/host-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2
+        key: host-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2

@@ -22,19 +22,13 @@ jobs:
     # Build Docker image
     - run: |
         docker build --tag recalbox "${{ env.WORKDIR }}"
-        docker image save --output "${{ runner.temp }}/recalbox.tar" recalbox
+        docker image save --output "${{ runner.temp }}/recalbox-${{ inputs.tag }}-${{ inputs.arch }}.tar" recalbox
     - uses: actions/upload-artifact@v4
       with:
-        name: docker-${{ inputs.tag }}-${{ inputs.arch }}
-        path: ${{ runner.temp }}/recalbox.tar
-  disk:
+        name: recalbox-${{ inputs.tag }}-${{ inputs.arch }}.tar
+        path: ${{ runner.temp }}/recalbox-${{ inputs.tag }}-${{ inputs.arch }}.tar
+  work:
     runs-on: ubuntu-latest
-    env:
-      WORKDIR: /pool/recalbox
-      OUTPUTDIR: /pool/output
-      DL: /pool/dl
-      HOST: /pool/host
-      NPM_PREFIX_OUTPUT_PATH: /pool/output/build/.npm
     steps:
     # Install dependencies
     - run: |
@@ -43,25 +37,51 @@ jobs:
     - run: |
         set -x
         sudo modprobe nbd nbds_max=1
-        qemu-img create -f qcow2 "${{ runner.temp }}/recalbox.qcow2" 64G
-        sudo qemu-nbd --connect /dev/nbd0 --format qcow2 "${{ runner.temp }}/recalbox.qcow2"
-        sudo zpool create -O compression=zstd pool /dev/nbd0
-        sudo chown "$USER:$USER" /pool/
-        mkdir --parents "${{ env.OUTPUTDIR }}" "${{ env.DL }}" "${{ env.HOST }}" "${{ env.NPM_PREFIX_OUTPUT_PATH }}"
+        qemu-img create -f qcow2 "work-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2" 64G
+        sudo qemu-nbd --connect /dev/nbd0 --format qcow2 "${{ runner.temp }}/work-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2"
+        sudo mkdir --parents /pool/
+        sudo zpool create -O compression=zstd -m /pool/work work /dev/nbd0
+        sudo chown "$USER:$USER" /pool/work/
     # Clone repo
     - run: |
-        git clone --depth 1 --shallow-submodules --recurse-submodules --branch "${{ inputs.tag }}" https://gitlab.com/recalbox/recalbox.git "${{ env.WORKDIR }}"
+        git clone --depth 1 --shallow-submodules --recurse-submodules --branch "${{ inputs.tag }}" https://gitlab.com/recalbox/recalbox.git "/pool/work/recalbox/"
     # Apply patch
     - uses: actions/checkout@v6
     - run: |
-        (cd "${{ env.WORKDIR }}" && git apply "${{ github.workspace }}/patch/bass24.patch")
+        (cd "/pool/work/recalbox/" && git apply "${{ github.workspace }}/patch/bass24.patch") || true
     # Export zpool
     - run: |
-        zfs get all pool
-        sudo zpool export pool
+        zfs get all work
+        sudo zpool export work
         sudo qemu-nbd --disconnect /dev/nbd0
     - uses: actions/upload-artifact@v4
       with:
-        name: qcow2-${{ inputs.tag }}-${{ inputs.arch }}
-        path: ${{ runner.temp }}/recalbox.qcow2
+        name: work-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2
+        path: ${{ runner.temp }}/work-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2
+        compression-level: 0
+  output:
+    runs-on: ubuntu-latest
+    steps:
+    # Install dependencies
+    - run: |
+        sudo apt update
+        sudo apt install --yes zfsutils-linux qemu-utils
+    - run: |
+        set -x
+        sudo modprobe nbd nbds_max=1
+        qemu-img create -f qcow2 "output-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2" 64G
+        sudo qemu-nbd --connect /dev/nbd0 --format qcow2 "${{ runner.temp }}/output-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2"
+        sudo mkdir --parents /pool/
+        sudo zpool create -O compression=zstd -m /pool/output output /dev/nbd0
+        sudo chown "$USER:$USER" /pool/output/
+        mkdir --parents /pool/output/build/.npm
+    # Export zpool
+    - run: |
+        zfs get all output
+        sudo zpool export output
+        sudo qemu-nbd --disconnect /dev/nbd0
+    - uses: actions/upload-artifact@v4
+      with:
+        name: output-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2
+        path: ${{ runner.temp }}/output-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2
         compression-level: 0
