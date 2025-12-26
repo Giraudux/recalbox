@@ -37,11 +37,11 @@ jobs:
     # Import docker image
     - uses: actions/download-artifact@v5
       with:
-        name: recalbox-${{ inputs.tag }}-${{ inputs.arch }}.tar
+        name: recalbox-${{ inputs.tag }}-${{ inputs.arch }}.tar.zst
         path: ${{ runner.temp }}
     - run: |
-        docker load --input "${{ runner.temp }}/recalbox-${{ inputs.tag }}-${{ inputs.arch }}.tar"
-        rm "${{ runner.temp }}/recalbox-${{ inputs.tag }}-${{ inputs.arch }}.tar"
+        zstdcat "${{ runner.temp }}/recalbox-${{ inputs.tag }}-${{ inputs.arch }}.tar.zst" | docker load
+        rm "${{ runner.temp }}/recalbox-${{ inputs.tag }}-${{ inputs.arch }}.tar.zst"
     # Free disk space
     - uses: endersonmenezes/free-disk-space@v3
       with:

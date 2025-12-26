@@ -13,20 +13,23 @@ on:
 jobs:
   docker:
     runs-on: ubuntu-latest
-    env:
-      WORKDIR: ${{ github.workspace }}/recalbox
     steps:
-    # Clone repo
-    - run: |
-        git clone --depth 1 --branch "${{ inputs.tag }}" https://gitlab.com/recalbox/recalbox.git "${{ env.WORKDIR }}"
+    # Restore cache
+    - id: cache-docker
+      uses: actions/cache@v4
+      with:
+        path: ${{ runner.temp }}/recalbox-${{ inputs.tag }}-${{ inputs.arch }}.tar.zst
+        key: recalbox-${{ inputs.tag }}-${{ inputs.arch }}.tar.zst
     # Build Docker image
-    - run: |
-        docker build --tag recalbox "${{ env.WORKDIR }}"
-        docker image save --output "${{ runner.temp }}/recalbox-${{ inputs.tag }}-${{ inputs.arch }}.tar" recalbox
+    - if: steps.cache-docker.outputs.cache-hit != 'true'
+      run: |
+        git clone --depth 1 --branch "${{ inputs.tag }}" https://gitlab.com/recalbox/recalbox.git "${{ github.workspace }}/recalbox"
+        docker build --tag recalbox "${{ github.workspace }}/recalbox"
+        docker save recalbox | zstd -o "${{ runner.temp }}/recalbox-${{ inputs.tag }}-${{ inputs.arch }}.tar.zst"
     - uses: actions/upload-artifact@v4
       with:
-        name: recalbox-${{ inputs.tag }}-${{ inputs.arch }}.tar
-        path: ${{ runner.temp }}/recalbox-${{ inputs.tag }}-${{ inputs.arch }}.tar
+        name: recalbox-${{ inputs.tag }}-${{ inputs.arch }}.tar.zst
+        path: ${{ runner.temp }}/recalbox-${{ inputs.tag }}-${{ inputs.arch }}.tar.zst
   work:
     runs-on: ubuntu-latest
     steps:
