@@ -12,10 +12,15 @@ on:
       timeout:
         type: number
         default: 18000 # 5 hours
+    outputs:
+      status:
+        value: ${{ jobs.build.outputs.status }}
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    outputs:
+      status: ${{ steps.build.outputs.status }}
     steps:
     # Install dependencies
     - run: |
@@ -102,7 +107,8 @@ jobs:
         sudo zpool import -d "${{ runner.temp }}/dev/" output
         zfs get all output
     # Build
-    - run: |
+    - id: build
+      run: |
         set -x
         readonly timeout_sec="${{ inputs.timeout }}"
         current_time_sec=$(date +%s)
@@ -122,12 +128,16 @@ jobs:
           --user "$(id --user):$(id --group)" \
           recalbox
         then
+          echo "status=success" >> "$GITHUB_OUTPUT"
           tree "/pool/output/"
         else
           current_time_sec=$(date +%s)
           if [ "$current_time_sec" -lt "$end_time_sec" ]
           then
+            echo "status=failure" >> "$GITHUB_OUTPUT"
             exit 1
+          else
+            echo "status=continue" >> "$GITHUB_OUTPUT"
           fi
         fi
     # Disk space available
