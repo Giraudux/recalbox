@@ -60,24 +60,24 @@ jobs:
     - if: always()
       run: df --human-readable
     # Cache DL
-    - uses: actions/cache/restore@v4
-      id: cache-dl
-      with:
-        path: ${{ runner.temp }}/dl-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2
-        key: dl-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2
-    - if: steps.cache-dl.outputs.cache-hit != 'true'
-      run: |
-        set -x
-        qemu-img create -f qcow2 "${{ runner.temp }}/dl-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2" 10G
-        sudo qemu-nbd --connect "${{ runner.temp }}/dev/dl" --format qcow2 "${{ runner.temp }}/dl-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2"
-        sudo zpool create -O compression=zstd-19 -m /pool/dl/ dl "${{ runner.temp }}/dev/dl"
-        sudo chown "$USER:$USER" /pool/dl/
-    - if: steps.cache-dl.outputs.cache-hit == 'true'
-      run: |
-        set -x
-        sudo qemu-nbd --connect "${{ runner.temp }}/dev/dl" --format qcow2 "${{ runner.temp }}/dl-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2"
-        sudo zpool import -d "${{ runner.temp }}/dev/" dl
-        zfs get all dl
+    # - uses: actions/cache/restore@v4
+    #   id: cache-dl
+    #   with:
+    #     path: ${{ runner.temp }}/dl-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2
+    #     key: dl-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2
+    # - if: steps.cache-dl.outputs.cache-hit != 'true'
+    #   run: |
+    #     set -x
+    #     qemu-img create -f qcow2 "${{ runner.temp }}/dl-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2" 10G
+    #     sudo qemu-nbd --connect "${{ runner.temp }}/dev/dl" --format qcow2 "${{ runner.temp }}/dl-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2"
+    #     sudo zpool create -O compression=zstd-19 -m /pool/dl/ dl "${{ runner.temp }}/dev/dl"
+    #     sudo chown "$USER:$USER" /pool/dl/
+    # - if: steps.cache-dl.outputs.cache-hit == 'true'
+    #   run: |
+    #     set -x
+    #     sudo qemu-nbd --connect "${{ runner.temp }}/dev/dl" --format qcow2 "${{ runner.temp }}/dl-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2"
+    #     sudo zpool import -d "${{ runner.temp }}/dev/" dl
+    #     zfs get all dl
     # Import zpool
     - uses: actions/download-artifact@v5
       with:
@@ -88,6 +88,15 @@ jobs:
         sudo qemu-nbd --connect "${{ runner.temp }}/dev/work" --format qcow2 "${{ runner.temp }}/work-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2"
         sudo zpool import -d "${{ runner.temp }}/dev/" work
         zfs get all work
+    - uses: actions/download-artifact@v5
+      with:
+        name: dl-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2
+        path: ${{ runner.temp }}
+    - run: |
+        set -x
+        sudo qemu-nbd --connect "${{ runner.temp }}/dev/dl" --format qcow2 "${{ runner.temp }}/dl-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2"
+        sudo zpool import -d "${{ runner.temp }}/dev/" dl
+        zfs get all dl
     - uses: actions/download-artifact@v5
       with:
         name: host-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2
@@ -168,6 +177,12 @@ jobs:
         overwrite: true
     - uses: actions/upload-artifact@v4
       with:
+        name: dl-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2
+        path: ${{ runner.temp }}/dl-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2
+        compression-level: 0
+        overwrite: true
+    - uses: actions/upload-artifact@v4
+      with:
         name: host-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2
         path: ${{ runner.temp }}/host-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2
         compression-level: 0
@@ -178,7 +193,7 @@ jobs:
         path: ${{ runner.temp }}/output-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2
         compression-level: 0
         overwrite: true
-    - uses: actions/cache/save@v4
-      with:
-        path: ${{ runner.temp }}/dl-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2
-        key: dl-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2
+    # - uses: actions/cache/save@v4
+    #   with:
+    #     path: ${{ runner.temp }}/dl-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2
+    #     key: dl-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2
