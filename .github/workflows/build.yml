@@ -23,6 +23,7 @@ jobs:
   nibble1:
     needs: init
     uses: ./.github/workflows/nibble.yml
+    secrets: inherit
     with:
       tag: ${{ inputs.tag }}
       arch: ${{ inputs.arch }}

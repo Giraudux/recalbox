@@ -15,7 +15,12 @@ on:
     outputs:
       status:
         value: ${{ jobs.build.outputs.status }}
-
+    secrets:
+      CURLFTPFS_HOST:
+        required: true
+      CURLFTPFS_USER:
+        required: true
+        
 jobs:
   build:
     runs-on: ubuntu-latest
