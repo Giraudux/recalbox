@@ -98,6 +98,7 @@ jobs:
         zfs get all output
     # Cache
     - run: |
+        set +e
         echo user_allow_other | sudo tee --append /etc/fuse.conf
         sudo mkdir --parents /pool/ftp/
         sudo chown "$USER:$USER" /pool/ftp/
@@ -160,7 +161,15 @@ jobs:
         sudo qemu-nbd --disconnect "${{ runner.temp }}/dev/output"
     # Cache
     - run: |
-        find /pool/dl/ -mindepth 2 -maxdepth 2 -type f -printf "%P\0" | xargs --null --replace -- sh -c "mkdir --verbose --parents \"/pool/ftp/\$(dirname \"{}\")\" ; mv --verbose --no-clobber \"/pool/dl/{}\" \"/pool/ftp/{}\""
+        set -x
+        set +e
+        for package in /pool/dl/*/
+        do
+          if ! ls "$package"/*/ >/dev/null 2>&1
+          then
+            cp --verbose --no-clobber --recursive "$package" /pool/ftp/ && rm --verbose --recursive "$package"
+          fi
+        done
         fusermount -u /pool/ftp/
     - uses: actions/upload-artifact@v4
       with:
