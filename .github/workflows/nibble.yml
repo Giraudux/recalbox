@@ -137,7 +137,7 @@ jobs:
           --env "ARCH=${{ inputs.arch }}" \
           --env "RECALBOX_VERSION=${{ inputs.tag }}" \
           --env "FORCE_UNSAFE_CONFIGURE=1" \
-          --env "PACKAGE=${{ inputs.build_extra_args }}"
+          --env "PACKAGE=${{ inputs.build_extra_args }}" \
           --user "$(id --user):$(id --group)" \
           recalbox
         then
