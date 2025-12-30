@@ -23,7 +23,8 @@ jobs:
       status: ${{ steps.build.outputs.status }}
     steps:
     # Install dependencies
-    - run: |
+    - name: "Install dependencies"
+      run: |
         set -x
         mkdir --parents "${{ runner.temp }}/dev/" "${{ runner.temp }}/pool/"
         wget --directory-prefix="${{ runner.temp }}/pool/" http://archive.ubuntu.com/ubuntu/pool/universe/c/curlftpfs/curlftpfs_0.9.2-9build1_amd64.deb
@@ -35,15 +36,18 @@ jobs:
         ln --symbolic /dev/nbd2 "${{ runner.temp }}/dev/dl"
         ln --symbolic /dev/nbd3 "${{ runner.temp }}/dev/output"
     # Import docker image
-    - uses: actions/download-artifact@v5
+    - name: "Download artifact Docker image"
+      uses: actions/download-artifact@v5
       with:
         name: recalbox-${{ inputs.tag }}-${{ inputs.arch }}.tar.zst
         path: ${{ runner.temp }}
-    - run: |
+    - name: "Load Docker image"
+      run: |
         zstdcat "${{ runner.temp }}/recalbox-${{ inputs.tag }}-${{ inputs.arch }}.tar.zst" | docker load
         rm "${{ runner.temp }}/recalbox-${{ inputs.tag }}-${{ inputs.arch }}.tar.zst"
     # Free disk space
-    - uses: endersonmenezes/free-disk-space@v3
+    - name: "Free disk space"
+      uses: endersonmenezes/free-disk-space@v3
       with:
         remove_android: true
         remove_dotnet: true
@@ -57,47 +61,57 @@ jobs:
         rmz_version: "3.1.1"
         testing: false
     # Disk space available
-    - if: always()
+    - name: "Available disk space"
+      if: always()
       run: df --human-readable
     # Import zpool
-    - uses: actions/download-artifact@v5
+    - name: "Download artifact qcow2 & zpool - work"
+      uses: actions/download-artifact@v5
       with:
         name: work-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2
         path: ${{ runner.temp }}
-    - run: |
+    - name: "Connect qcow2 & import zpool - work"
+      run: |
         set -x
         sudo qemu-nbd --connect "${{ runner.temp }}/dev/work" --format qcow2 "${{ runner.temp }}/work-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2"
         sudo zpool import -d "${{ runner.temp }}/dev/" work
         zfs get all work
-    - uses: actions/download-artifact@v5
+    - name: "Download artifact qcow2 & zpool - dl"
+      uses: actions/download-artifact@v5
       with:
         name: dl-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2
         path: ${{ runner.temp }}
-    - run: |
+    - name: "Connect qcow2 & import zpool - dl"
+      run: |
         set -x
         sudo qemu-nbd --connect "${{ runner.temp }}/dev/dl" --format qcow2 "${{ runner.temp }}/dl-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2"
         sudo zpool import -d "${{ runner.temp }}/dev/" dl
         zfs get all dl
-    - uses: actions/download-artifact@v5
+    - name: "Download artifact qcow2 & zpool - host"
+      uses: actions/download-artifact@v5
       with:
         name: host-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2
         path: ${{ runner.temp }}
-    - run: |
+    - name: "Connect qcow2 & import zpool - host"
+      run: |
         set -x
         sudo qemu-nbd --connect "${{ runner.temp }}/dev/host" --format qcow2 "${{ runner.temp }}/host-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2"
         sudo zpool import -d "${{ runner.temp }}/dev/" host
         zfs get all host
-    - uses: actions/download-artifact@v5
+    - name: "Download artifact qcow2 & zpool - output"
+      uses: actions/download-artifact@v5
       with:
         name: output-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2
         path: ${{ runner.temp }}
-    - run: |
+    - name: "Connect qcow2 & import zpool - output"
+      run: |
         set -x
         sudo qemu-nbd --connect "${{ runner.temp }}/dev/output" --format qcow2 "${{ runner.temp }}/output-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2"
         sudo zpool import -d "${{ runner.temp }}/dev/" output
         zfs get all output
     # Cache
-    - run: |
+    - name: "Restore cache from FTP"
+      run: |
         set +e
         echo user_allow_other | sudo tee --append /etc/fuse.conf
         sudo mkdir --parents /pool/ftp/
@@ -105,7 +119,8 @@ jobs:
         curlftpfs -s "${{ secrets.CURLFTPFS_HOST }}" /pool/ftp/ -o user="${{ secrets.CURLFTPFS_USER }}" -o allow_other
         find /pool/ftp/ -type f -printf "%P\0" | xargs --null --replace -- sh -c "mkdir --verbose --parents \"/pool/dl/\$(dirname \"{}\")\" ; ln --verbose --force --symbolic \"/share/ftp/{}\" \"/pool/dl/{}\""
     # Build
-    - id: build
+    - name: "Build"
+      id: build
       run: |
         set -x
         readonly timeout_sec="${{ inputs.timeout }}"
@@ -140,12 +155,14 @@ jobs:
           fi
         fi
     # Disk space available
-    - if: always()
+    - name: "Available disk space"
+      if: always()
       run: |
         ls --human-readable -l "${{ runner.temp }}"
         df --human-readable
     # Cache
-    - run: |
+    - name: "Save cache to FTP"
+      run: |
         set -x
         set +e
         for package in /pool/dl/*/
@@ -157,7 +174,8 @@ jobs:
         done
         fusermount -u /pool/ftp/
     # Export zpool
-    - run: |
+    - name: "Export zpool & disconnect qcow2"
+      run: |
         set -x
         zfs get all work
         zfs get all host
@@ -171,31 +189,31 @@ jobs:
         sudo qemu-nbd --disconnect "${{ runner.temp }}/dev/host"
         sudo qemu-nbd --disconnect "${{ runner.temp }}/dev/dl"
         sudo qemu-nbd --disconnect "${{ runner.temp }}/dev/output"
-    - uses: actions/upload-artifact@v4
+    - name: "Upload artifact qcow2 & zpool - work"
+      uses: actions/upload-artifact@v4
       with:
         name: work-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2
         path: ${{ runner.temp }}/work-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2
         compression-level: 0
         overwrite: true
-    - uses: actions/upload-artifact@v4
+    - name: "Upload artifact qcow2 & zpool - dl"
+      uses: actions/upload-artifact@v4
       with:
         name: dl-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2
         path: ${{ runner.temp }}/dl-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2
         compression-level: 0
         overwrite: true
-    - uses: actions/upload-artifact@v4
+    - name: "Upload artifact qcow2 & zpool - host"
+      uses: actions/upload-artifact@v4
       with:
         name: host-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2
         path: ${{ runner.temp }}/host-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2
         compression-level: 0
         overwrite: true
-    - uses: actions/upload-artifact@v4
+    - name: "Upload artifact qcow2 & zpool - output"
+      uses: actions/upload-artifact@v4
       with:
         name: output-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2
         path: ${{ runner.temp }}/output-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2
         compression-level: 0
         overwrite: true
-    # - uses: actions/cache/save@v4
-    #   with:
-    #     path: ${{ runner.temp }}/dl-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2
-    #     key: dl-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2

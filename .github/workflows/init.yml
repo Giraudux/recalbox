@@ -15,18 +15,21 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     # Restore cache
-    - id: cache-docker
+    - name: "Cache Docker image"
+      id: cache-docker
       uses: actions/cache@v4
       with:
         path: ${{ runner.temp }}/recalbox-${{ inputs.tag }}-${{ inputs.arch }}.tar.zst
         key: recalbox-${{ inputs.tag }}-${{ inputs.arch }}.tar.zst
     # Build Docker image
-    - if: steps.cache-docker.outputs.cache-hit != 'true'
+    - name: "Build & save Docker image"
+      if: steps.cache-docker.outputs.cache-hit != 'true'
       run: |
         git clone --depth 1 --branch "${{ inputs.tag }}" https://gitlab.com/recalbox/recalbox.git "${{ github.workspace }}/recalbox"
         docker build --tag recalbox "${{ github.workspace }}/recalbox"
         docker save recalbox | zstd -o "${{ runner.temp }}/recalbox-${{ inputs.tag }}-${{ inputs.arch }}.tar.zst"
-    - uses: actions/upload-artifact@v4
+    - name: "Upload artifact Docker image"
+      uses: actions/upload-artifact@v4
       with:
         name: recalbox-${{ inputs.tag }}-${{ inputs.arch }}.tar.zst
         path: ${{ runner.temp }}/recalbox-${{ inputs.tag }}-${{ inputs.arch }}.tar.zst
@@ -34,10 +37,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     # Install dependencies
-    - run: |
+    - name: "Install dependencies"
+      run: |
         sudo apt update
         sudo apt install --yes zfsutils-linux qemu-utils
-    - run: |
+    - name: "Create qcow2 & zpool"
+      run: |
         set -x
         sudo modprobe nbd nbds_max=1
         qemu-img create -f qcow2 "${{ runner.temp }}/work-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2" 64G
@@ -45,11 +50,14 @@ jobs:
         sudo zpool create -O compression=zstd -m /pool/work work /dev/nbd0
         sudo chown "$USER:$USER" /pool/work/
     # Clone repo
-    - run: |
+    - name: "Clone recalbox"
+      run: |
         git clone --depth 1 --shallow-submodules --recurse-submodules --branch "${{ inputs.tag }}" https://gitlab.com/recalbox/recalbox.git "/pool/work/recalbox/"
     # Apply patch
-    - uses: actions/checkout@v6
-    - run: |
+    - name: "Checkout patches"
+      uses: actions/checkout@v6
+    - name: "Apply patches"
+      run: |
         set -x
         cd "/pool/work/recalbox/"
         set +e
@@ -59,11 +67,13 @@ jobs:
         git apply "${{ github.workspace }}/patch/libretro-tamalibretro.patch"
         git apply "${{ github.workspace }}/patch/docker-ccache.patch"
     # Export zpool
-    - run: |
+    - name: "Export zpool & Disconnect qcow2"
+      run: |
         zfs get all work
         sudo zpool export work
         sudo qemu-nbd --disconnect /dev/nbd0
-    - uses: actions/upload-artifact@v4
+    - name: "Upload artifact qcow2 & zpool"
+      uses: actions/upload-artifact@v4
       with:
         name: work-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2
         path: ${{ runner.temp }}/work-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2
@@ -72,10 +82,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     # Install dependencies
-    - run: |
+    - name: "Install dependencies"
+      run: |
         sudo apt update
         sudo apt install --yes zfsutils-linux qemu-utils
-    - run: |
+    - name: "Create qcow2 & zpool"
+      run: |
         set -x
         sudo modprobe nbd nbds_max=1
         qemu-img create -f qcow2 "${{ runner.temp }}/dl-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2" 64G
@@ -83,11 +95,13 @@ jobs:
         sudo zpool create -O compression=zstd -m /pool/dl dl /dev/nbd0
         sudo chown "$USER:$USER" /pool/dl/
     # Export zpool
-    - run: |
+    - name: "Export zpool & Disconnect qcow2"
+      run: |
         zfs get all dl
         sudo zpool export dl
         sudo qemu-nbd --disconnect /dev/nbd0
-    - uses: actions/upload-artifact@v4
+    - name: "Upload artifact qcow2 & zpool"
+      uses: actions/upload-artifact@v4
       with:
         name: dl-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2
         path: ${{ runner.temp }}/dl-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2
@@ -96,10 +110,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     # Install dependencies
-    - run: |
+    - name: "Install dependencies"
+      run: |
         sudo apt update
         sudo apt install --yes zfsutils-linux qemu-utils
-    - run: |
+    - name: "Create qcow2 & zpool"
+      run: |
         set -x
         sudo modprobe nbd nbds_max=1
         qemu-img create -f qcow2 "${{ runner.temp }}/host-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2" 64G
@@ -107,11 +123,13 @@ jobs:
         sudo zpool create -O compression=zstd -m /pool/host host /dev/nbd0
         sudo chown "$USER:$USER" /pool/host/
     # Export zpool
-    - run: |
+    - name: "Export zpool & Disconnect qcow2"
+      run: |
         zfs get all host
         sudo zpool export host
         sudo qemu-nbd --disconnect /dev/nbd0
-    - uses: actions/upload-artifact@v4
+    - name: "Upload artifact qcow2 & zpool"
+      uses: actions/upload-artifact@v4
       with:
         name: host-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2
         path: ${{ runner.temp }}/host-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2
@@ -120,10 +138,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     # Install dependencies
-    - run: |
+    - name: "Install dependencies"
+      run: |
         sudo apt update
         sudo apt install --yes zfsutils-linux qemu-utils
-    - run: |
+    - name: "Create qcow2 & zpool"
+      run: |
         set -x
         sudo modprobe nbd nbds_max=1
         qemu-img create -f qcow2 "${{ runner.temp }}/output-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2" 64G
@@ -132,11 +152,13 @@ jobs:
         sudo chown "$USER:$USER" /pool/output/
         mkdir --parents /pool/output/build/.npm
     # Export zpool
-    - run: |
+    - name: "Export zpool & Disconnect qcow2"
+      run: |
         zfs get all output
         sudo zpool export output
         sudo qemu-nbd --disconnect /dev/nbd0
-    - uses: actions/upload-artifact@v4
+    - name: "Upload artifact qcow2 & zpool"
+      uses: actions/upload-artifact@v4
       with:
         name: output-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2
         path: ${{ runner.temp }}/output-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2
