@@ -21,11 +21,16 @@ jobs:
       with:
         path: ${{ runner.temp }}/recalbox-${{ inputs.tag }}-${{ inputs.arch }}.tar.zst
         key: recalbox-${{ inputs.tag }}-${{ inputs.arch }}.tar.zst
+    # Checkout patch
+    - name: "Checkout patches"
+      if: steps.cache-docker.outputs.cache-hit != 'true'
+      uses: actions/checkout@v6
     # Build Docker image
     - name: "Build & save Docker image"
       if: steps.cache-docker.outputs.cache-hit != 'true'
       run: |
         git clone --depth 1 --branch "${{ inputs.tag }}" https://gitlab.com/recalbox/recalbox.git "${{ github.workspace }}/recalbox"
+        (cd "${{ github.workspace }}/recalbox" && git apply "${{ github.workspace }}/patch/docker-ccache.patch")
         docker build --tag recalbox "${{ github.workspace }}/recalbox"
         docker save recalbox | zstd -o "${{ runner.temp }}/recalbox-${{ inputs.tag }}-${{ inputs.arch }}.tar.zst"
     - name: "Upload artifact Docker image"
@@ -65,7 +70,6 @@ jobs:
         git apply "${{ github.workspace }}/patch/megatools.patch"
         git apply "${{ github.workspace }}/patch/libretro-melonds.patch"
         git apply "${{ github.workspace }}/patch/libretro-tamalibretro.patch"
-        git apply "${{ github.workspace }}/patch/docker-ccache.patch"
     # Export zpool
     - name: "Export zpool & Disconnect qcow2"
       run: |
