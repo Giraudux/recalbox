@@ -170,11 +170,11 @@ jobs:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
         set -x
-        cache_keys=$(gh cache list --key "ccache-${{ inputs.arch }}" --json id --jq ".[].id")
+        cache_keys=$(gh cache list --repo "${{ github.repository }}" --key "ccache-${{ inputs.arch }}" --json id --jq ".[].id")
         set +e
         for cache_key in $cache_keys
         do
-            gh cache delete "$cache_key"
+            gh cache delete --repo "${{ github.repository }}" "$cache_key"
         done
     - name: "Save cache"
       id: cache-ccache-save
