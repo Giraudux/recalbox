@@ -1,8 +1,16 @@
 diff --git a/Dockerfile b/Dockerfile
-index 144e856..219529b 100644
+index 144e856..cb815d7 100644
 --- a/Dockerfile
 +++ b/Dockerfile
-@@ -32,6 +32,6 @@ CMD echo ">>> Setting recalbox version to ${RECALBOX_VERSION}" && echo "${RECALB
+@@ -5,6 +5,7 @@ ENV TERM xterm
+ ENV ARCH ''
+ ENV RECALBOX_VERSION 'development'
+ ENV RECALBOX_CCACHE_ENABLED ''
++ENV RECALBOX_CCACHE_MAX_SIZE ''
+ ENV PACKAGE ''
+ 
+ # Install dependencies
+@@ -32,6 +33,6 @@ CMD echo ">>> Setting recalbox version to ${RECALBOX_VERSION}" && echo "${RECALB
      echo ">>> Reseting buildroot submodule" && ( cd buildroot && git reset HEAD --hard && git clean -dfx ) && \
      echo ">>> Fetching buildroot submodule" && ( git submodule update --init buildroot ) && \
      echo ">>> Making recalbox-${ARCH}_defconfig" && make recalbox-${ARCH}_defconfig && \
