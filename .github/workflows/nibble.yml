@@ -166,46 +166,65 @@ jobs:
         df --human-readable
     # Cache
     - name: "Clear cache"
+      if: always()
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
         set -x
         cache_keys=$(gh cache list --repo "${{ github.repository }}" --key "ccache-${{ inputs.arch }}" --json id --jq ".[].id")
-        set +e
         for cache_key in $cache_keys
         do
-            gh cache delete --repo "${{ github.repository }}" "$cache_key"
+            gh cache delete --repo "${{ github.repository }}" "$cache_key" || true
         done
     - name: "Save cache"
       id: cache-ccache-save
-      if: inputs.ccache_on
+      if: always() && inputs.ccache_on
       uses: actions/cache/save@v4
       with:
         key: ${{ steps.cache-ccache-restore.outputs.cache-primary-key }}
         path: ${{ runner.temp }}/ccache/
     # Export zpool
-    - name: "Export zpool & disconnect qcow2"
+    - name: "Export zpool & disconnect qcow2 - DL"
+      id: export-zpool-dl
+      if: always()
+      run: |
+        set -x
+        zfs get all dl
+        sudo zpool export dl
+        sudo qemu-nbd --disconnect "${{ runner.temp }}/dev/dl"
+    - name: "Export zpool & disconnect qcow2 - Work"
+      id: export-zpool-work
+      if: always()
       run: |
         set -x
         zfs get all work
-        zfs get all host
-        zfs get all dl
-        zfs get all output
         sudo zpool export work
-        sudo zpool export host
-        sudo zpool export dl
-        sudo zpool export output
         sudo qemu-nbd --disconnect "${{ runner.temp }}/dev/work"
+    - name: "Export zpool & disconnect qcow2 - Host"
+      id: export-zpool-host
+      if: always()
+      run: |
+        set -x
+        zfs get all host
+        sudo zpool export host
         sudo qemu-nbd --disconnect "${{ runner.temp }}/dev/host"
-        sudo qemu-nbd --disconnect "${{ runner.temp }}/dev/dl"
+    - name: "Export zpool & disconnect qcow2 - Output"
+      id: export-zpool-output
+      if: always()
+      run: |
+        set -x
+        zfs get all output
+        sudo zpool export output
         sudo qemu-nbd --disconnect "${{ runner.temp }}/dev/output"
     - name: "Upload artifact qcow2 & zpool - dl"
+      if: always() && steps.export-zpool-dl.outcome == 'success'
       uses: actions/upload-artifact@v4
       with:
         name: ${{ job.check_run_id }}-dl-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2
         path: ${{ runner.temp }}/dl-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2
         compression-level: 0
     - name: "Upload artifact qcow2 & zpool - work"
+      if: always() && steps.export-zpool-work.outcome == 'success'
       uses: actions/upload-artifact@v4
       with:
         name: work-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2
@@ -213,6 +232,7 @@ jobs:
         compression-level: 0
         overwrite: true
     - name: "Upload artifact qcow2 & zpool - host"
+      if: always() && steps.export-zpool-host.outcome == 'success'
       uses: actions/upload-artifact@v4
       with:
         name: host-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2
@@ -220,6 +240,7 @@ jobs:
         compression-level: 0
         overwrite: true
     - name: "Upload artifact qcow2 & zpool - output"
+      if: always() && steps.export-zpool-output.outcome == 'success'
       uses: actions/upload-artifact@v4
       with:
         name: output-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2
