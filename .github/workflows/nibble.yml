@@ -32,14 +32,13 @@ jobs:
     - name: "Install dependencies"
       run: |
         set -x
-        mkdir --parents "${{ runner.temp }}/dev/" "${{ runner.temp }}/ccache/"
+        mkdir --parents "${{ runner.temp }}/dev/" "${{ runner.temp }}/ccache/" "${{ runner.temp }}/dl/"
         sudo apt update
         sudo apt install --yes zfsutils-linux qemu-utils tree
-        sudo modprobe nbd nbds_max=4
+        sudo modprobe nbd nbds_max=3
         ln --symbolic /dev/nbd0 "${{ runner.temp }}/dev/work"
         ln --symbolic /dev/nbd1 "${{ runner.temp }}/dev/host"
-        ln --symbolic /dev/nbd2 "${{ runner.temp }}/dev/dl"
-        ln --symbolic /dev/nbd3 "${{ runner.temp }}/dev/output"
+        ln --symbolic /dev/nbd2 "${{ runner.temp }}/dev/output"
     # Import docker image
     - name: "Download artifact Docker image"
       uses: actions/download-artifact@v5
@@ -70,13 +69,6 @@ jobs:
       if: always()
       run: df --human-readable
     # Import zpool
-    - name: "Create qcow2 & zpool - dl"
-      run: |
-        set -x
-        qemu-img create -f qcow2 "${{ runner.temp }}/dl-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2" 64G
-        sudo qemu-nbd --connect "${{ runner.temp }}/dev/dl" --format qcow2 "${{ runner.temp }}/dl-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2"
-        sudo zpool create -O compression=zstd -m /pool/dl dl "${{ runner.temp }}/dev/dl"
-        sudo chown "$USER:$USER" /pool/dl/
     - name: "Download artifact qcow2 & zpool - work"
       uses: actions/download-artifact@v5
       with:
@@ -133,7 +125,7 @@ jobs:
           --name recalbox \
           --volume "/pool/work/recalbox/:/work/" \
           --volume "/pool/output/:/work/output/" \
-          --volume "/pool/dl/:/share/dl/" \
+          --volume "${{ runner.temp }}/dl/:/share/dl/" \
           --volume "/pool/host/:/share/host/" \
           --volume "/pool/output/build/.npm:/.npm" \
           --volume "${{ runner.temp }}/ccache/:/share/ccache" \
@@ -184,14 +176,6 @@ jobs:
         key: ${{ steps.cache-ccache-restore.outputs.cache-primary-key }}
         path: ${{ runner.temp }}/ccache/
     # Export zpool
-    - name: "Export zpool & disconnect qcow2 - DL"
-      id: export-zpool-dl
-      if: always()
-      run: |
-        set -x
-        zfs get all dl
-        sudo zpool export dl
-        sudo qemu-nbd --disconnect "${{ runner.temp }}/dev/dl"
     - name: "Export zpool & disconnect qcow2 - Work"
       id: export-zpool-work
       if: always()
@@ -216,12 +200,12 @@ jobs:
         zfs get all output
         sudo zpool export output
         sudo qemu-nbd --disconnect "${{ runner.temp }}/dev/output"
-    - name: "Upload artifact qcow2 & zpool - dl"
-      if: always() && steps.export-zpool-dl.outcome == 'success'
+    - name: "Upload dl directory"
+      if: always()
       uses: actions/upload-artifact@v4
       with:
-        name: ${{ job.check_run_id }}-dl-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2
-        path: ${{ runner.temp }}/dl-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2
+        name: ${{ job.check_run_id }}-dl-${{ inputs.tag }}-${{ inputs.arch }}
+        path: ${{ runner.temp }}/dl/
         compression-level: 0
     - name: "Upload artifact qcow2 & zpool - work"
       if: always() && steps.export-zpool-work.outcome == 'success'
