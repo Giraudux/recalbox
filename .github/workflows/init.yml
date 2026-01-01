@@ -66,8 +66,6 @@ jobs:
         set -x
         cd "/pool/work/recalbox/"
         set +e
-        git apply "${{ github.workspace }}/patch/bass24.patch"
-        git apply "${{ github.workspace }}/patch/megatools.patch"
         git apply "${{ github.workspace }}/patch/libretro-melonds.patch"
         git apply "${{ github.workspace }}/patch/libretro-tamalibretro.patch"
     # Export zpool
