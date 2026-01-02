@@ -11,7 +11,7 @@ on:
         type: string
       timeout:
         type: number
-        default: 18000 # 5 hours
+        default: 16200 # 4.5 hours
       build_extra_args:
         type: string
         default: ""
