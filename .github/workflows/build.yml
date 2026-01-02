@@ -34,6 +34,7 @@ jobs:
       build_extra_args: ${{ inputs.build_extra_args }}
   nibble2:
     needs: nibble1
+    if: needs.nibble1.outputs.status == 'continue'
     uses: ./.github/workflows/nibble.yml
     secrets: inherit
     with:
@@ -42,6 +43,7 @@ jobs:
       build_extra_args: ${{ inputs.build_extra_args }}
   nibble3:
     needs: nibble2
+    if: needs.nibble2.outputs.status == 'continue'
     uses: ./.github/workflows/nibble.yml
     secrets: inherit
     with:
@@ -50,6 +52,7 @@ jobs:
       build_extra_args: ${{ inputs.build_extra_args }}
   nibble4:
     needs: nibble3
+    if: needs.nibble3.outputs.status == 'continue'
     uses: ./.github/workflows/nibble.yml
     secrets: inherit
     with:
@@ -58,6 +61,7 @@ jobs:
       build_extra_args: ${{ inputs.build_extra_args }}
   nibble5:
     needs: nibble4
+    if: needs.nibble4.outputs.status == 'continue'
     uses: ./.github/workflows/nibble.yml
     secrets: inherit
     with:
@@ -66,6 +70,7 @@ jobs:
       build_extra_args: ${{ inputs.build_extra_args }}
   nibble6:
     needs: nibble5
+    if: needs.nibble5.outputs.status == 'continue'
     uses: ./.github/workflows/nibble.yml
     secrets: inherit
     with:

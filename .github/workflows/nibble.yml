@@ -139,7 +139,7 @@ jobs:
           recalbox
         then
           echo "status=success" >> "$GITHUB_OUTPUT"
-          tree "/pool/output/"
+          ls "/pool/output/"*
         else
           current_time_sec=$(date +%s)
           if [ "$current_time_sec" -lt "$end_time_sec" ]
@@ -204,7 +204,7 @@ jobs:
       if: always()
       uses: actions/upload-artifact@v4
       with:
-        name: ${{ job.check_run_id }}-dl-${{ inputs.tag }}-${{ inputs.arch }}
+        name: dl-${{ inputs.tag }}-${{ inputs.arch }}-${{ job.check_run_id }}
         path: ${{ runner.temp }}/dl/
         compression-level: 0
     - name: "Upload artifact qcow2 & zpool - work"
