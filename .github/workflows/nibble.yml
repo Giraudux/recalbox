@@ -213,7 +213,6 @@ jobs:
       with:
         name: dl-${{ inputs.tag }}-${{ inputs.arch }}-${{ job.check_run_id }}
         path: ${{ runner.temp }}/dl/
-        compression-level: 0
     - name: "Upload artifact qcow2 & zpool - work"
       if: always() && steps.export-zpool-work.outcome == 'success'
       uses: actions/upload-artifact@v4
