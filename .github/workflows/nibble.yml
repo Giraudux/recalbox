@@ -150,6 +150,13 @@ jobs:
             echo "status=continue" >> "$GITHUB_OUTPUT"
           fi
         fi
+    - name: "Upload artifact images directory"
+      if: steps.build.outputs.status == 'success'
+      uses: actions/upload-artifact@v4
+      with:
+        name: images-${{ inputs.tag }}-${{ inputs.arch }}
+        path: /pool/output/images/
+        compression-level: 0
     # Disk space available
     - name: "Available disk space"
       if: always()
@@ -200,7 +207,7 @@ jobs:
         zfs get all output
         sudo zpool export output
         sudo qemu-nbd --disconnect "${{ runner.temp }}/dev/output"
-    - name: "Upload dl directory"
+    - name: "Upload artifact dl directory"
       if: always()
       uses: actions/upload-artifact@v4
       with:
