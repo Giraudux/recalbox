@@ -151,8 +151,8 @@ jobs:
       run: |
         set -x
         df --human-readable
-        du -skh "${{ runner.temp }}/*"
-        du -skh "/pool/output/*"
+        du -skh "${{ runner.temp }}/"*
+        du -skh "/pool/output/"*
     # Cache
     - name: "Clear cache"
       if: always() && inputs.ccache_on
