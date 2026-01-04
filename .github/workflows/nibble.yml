@@ -83,11 +83,11 @@ jobs:
       uses: actions/download-artifact@v5
       with:
         name: output-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2
-        path: ${{ runner.temp }}
+        path: /mnt/
     - name: "Connect qcow2 & import zpool - output"
       run: |
         set -x
-        sudo qemu-nbd --connect "${{ runner.temp }}/dev/output" --format qcow2 "${{ runner.temp }}/output-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2"
+        sudo qemu-nbd --connect "${{ runner.temp }}/dev/output" --format qcow2 "/mnt/output-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2"
         sudo zpool import -d "${{ runner.temp }}/dev/" output
         zfs get all output
     # Cache
@@ -205,6 +205,6 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: output-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2
-        path: ${{ runner.temp }}/output-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2
+        path: /mnt/output-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2
         compression-level: 0
         overwrite: true
