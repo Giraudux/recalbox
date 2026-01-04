@@ -68,6 +68,18 @@ jobs:
       if: always()
       run: df --human-readable
     # Import zpool
+    - name: "Download artifact qcow2 & zpool - output"
+      uses: actions/download-artifact@v5
+      with:
+        name: output-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2
+        path: ${{ runner.temp }}
+    - name: "Connect qcow2 & import zpool - output"
+      run: |
+        set -x
+        sudo mv "${{ runner.temp }}/output-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2" /mnt/
+        sudo qemu-nbd --connect "${{ runner.temp }}/dev/output" --format qcow2 "/mnt/output-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2"
+        sudo zpool import -d "${{ runner.temp }}/dev/" output
+        zfs get all output
     - name: "Download artifact qcow2 & zpool - work"
       uses: actions/download-artifact@v5
       with:
@@ -79,17 +91,6 @@ jobs:
         sudo qemu-nbd --connect "${{ runner.temp }}/dev/work" --format qcow2 "${{ runner.temp }}/work-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2"
         sudo zpool import -d "${{ runner.temp }}/dev/" work
         zfs get all work
-    - name: "Download artifact qcow2 & zpool - output"
-      uses: actions/download-artifact@v5
-      with:
-        name: output-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2
-        path: /mnt/
-    - name: "Connect qcow2 & import zpool - output"
-      run: |
-        set -x
-        sudo qemu-nbd --connect "${{ runner.temp }}/dev/output" --format qcow2 "/mnt/output-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2"
-        sudo zpool import -d "${{ runner.temp }}/dev/" output
-        zfs get all output
     # Cache
     - name: "Restore cache"
       if: inputs.ccache_on
