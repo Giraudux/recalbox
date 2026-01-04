@@ -36,18 +36,8 @@ jobs:
         sudo apt update
         sudo apt install --yes zfsutils-linux qemu-utils tree
         sudo modprobe nbd nbds_max=2
-        ln --symbolic /dev/nbd0 "${{ runner.temp }}/dev/work"
-        ln --symbolic /dev/nbd1 "${{ runner.temp }}/dev/output"
-    # Import docker image
-    - name: "Download artifact Docker image"
-      uses: actions/download-artifact@v5
-      with:
-        name: recalbox-${{ inputs.tag }}-${{ inputs.arch }}.tar.zst
-        path: ${{ runner.temp }}
-    - name: "Load Docker image"
-      run: |
-        zstdcat "${{ runner.temp }}/recalbox-${{ inputs.tag }}-${{ inputs.arch }}.tar.zst" | docker load
-        rm "${{ runner.temp }}/recalbox-${{ inputs.tag }}-${{ inputs.arch }}.tar.zst"
+        ln --symbolic /dev/nbd0 "${{ runner.temp }}/dev/disk0"
+        ln --symbolic /dev/nbd1 "${{ runner.temp }}/dev/disk1"
     # Free disk space
     - name: "Free disk space"
       uses: endersonmenezes/free-disk-space@v3
@@ -68,29 +58,39 @@ jobs:
       if: always()
       run: df --human-readable
     # Import zpool
-    - name: "Download artifact qcow2 & zpool - output"
+    - name: "Download artifact disk 1"
       uses: actions/download-artifact@v5
       with:
-        name: output-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2
+        name: disk1-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2
         path: ${{ runner.temp }}
-    - name: "Connect qcow2 & import zpool - output"
+    - name: "Connect & import disk 1"
       run: |
         set -x
-        sudo mv "${{ runner.temp }}/output-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2" /mnt/
-        sudo qemu-nbd --connect "${{ runner.temp }}/dev/output" --format qcow2 "/mnt/output-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2"
-        sudo zpool import -d "${{ runner.temp }}/dev/" output
-        zfs get all output
-    - name: "Download artifact qcow2 & zpool - work"
+        sudo mv "${{ runner.temp }}/disk1-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2" /mnt/
+        sudo qemu-nbd --connect "${{ runner.temp }}/dev/disk1" --format qcow2 "/mnt/disk1-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2"
+        sudo zpool import -d "${{ runner.temp }}/dev/" disk1
+        zfs get all disk1
+    # Import docker image
+    - name: "Download artifact Docker image"
       uses: actions/download-artifact@v5
       with:
-        name: work-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2
+        name: recalbox-${{ inputs.tag }}-${{ inputs.arch }}.tar.zst
         path: ${{ runner.temp }}
-    - name: "Connect qcow2 & import zpool - work"
+    - name: "Load Docker image"
+      run: |
+        zstdcat "${{ runner.temp }}/recalbox-${{ inputs.tag }}-${{ inputs.arch }}.tar.zst" | docker load
+        rm "${{ runner.temp }}/recalbox-${{ inputs.tag }}-${{ inputs.arch }}.tar.zst"
+    - name: "Download artifact disk 0"
+      uses: actions/download-artifact@v5
+      with:
+        name: disk0-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2
+        path: ${{ runner.temp }}
+    - name: "Connect & import disk 0"
       run: |
         set -x
-        sudo qemu-nbd --connect "${{ runner.temp }}/dev/work" --format qcow2 "${{ runner.temp }}/work-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2"
-        sudo zpool import -d "${{ runner.temp }}/dev/" work
-        zfs get all work
+        sudo qemu-nbd --connect "${{ runner.temp }}/dev/disk0" --format qcow2 "${{ runner.temp }}/disk0-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2"
+        sudo zpool import -d "${{ runner.temp }}/dev/" disk0
+        zfs get all disk0
     # Cache
     - name: "Restore cache"
       if: inputs.ccache_on
@@ -109,13 +109,13 @@ jobs:
         current_time_sec=$(date +%s)
         end_time_sec=$((current_time_sec + timeout_sec))
         (sleep "$timeout_sec" ; docker exec --user root recalbox sh -c "chmod -x /usr/bin/make") &
-        cd "/pool/work/recalbox/"
+        cd "/pool/disk0/recalbox/"
         if docker run --rm --security-opt seccomp=unconfined \
           --name recalbox \
-          --volume "/pool/work/recalbox/:/work/" \
-          --volume "/pool/output/:/work/output/" \
+          --volume "/pool/disk0/recalbox/:/work/" \
+          --volume "/pool/disk1/output/build/:/work/output/build/" \
+          --volume "/pool/disk1/.npm/:/.npm/" \
           --volume "${{ runner.temp }}/dl/:/share/dl/" \
-          --volume "/pool/output/build/.npm:/.npm" \
           --volume "${{ runner.temp }}/ccache/:/share/ccache" \
           --env "ARCH=${{ inputs.arch }}" \
           --env "RECALBOX_VERSION=${{ inputs.tag }}" \
@@ -127,7 +127,7 @@ jobs:
           recalbox
         then
           echo "status=success" >> "$GITHUB_OUTPUT"
-          ls "/pool/output/"*
+          ls "/pool/"*/*/
         else
           current_time_sec=$(date +%s)
           if [ "$current_time_sec" -lt "$end_time_sec" ]
@@ -143,7 +143,7 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: images-${{ inputs.tag }}-${{ inputs.arch }}
-        path: /pool/output/images/
+        path: /pool/disk0/output/images/
         compression-level: 0
     # Disk space available
     - name: "Available disk space"
@@ -151,8 +151,7 @@ jobs:
       run: |
         set -x
         df --human-readable
-        du -skh "${{ runner.temp }}/"*
-        du -skh "/pool/output/"*
+        du -skh "/pool/"*/*/
     # Cache
     - name: "Clear cache"
       if: always() && inputs.ccache_on
@@ -173,41 +172,41 @@ jobs:
         key: ${{ steps.cache-ccache-restore.outputs.cache-primary-key }}
         path: ${{ runner.temp }}/ccache/
     # Export zpool
-    - name: "Export zpool & disconnect qcow2 - Work"
-      id: export-zpool-work
+    - name: "Export & disconnect disk 0"
+      id: export-zpool-disk0
       if: always()
       run: |
         set -x
-        zfs get all work
-        sudo zpool export work
-        sudo qemu-nbd --disconnect "${{ runner.temp }}/dev/work"
-    - name: "Export zpool & disconnect qcow2 - Output"
-      id: export-zpool-output
+        zfs get all disk0
+        sudo zpool export disk0
+        sudo qemu-nbd --disconnect "${{ runner.temp }}/dev/disk0"
+    - name: "Export & disconnect disk 1"
+      id: export-zpool-disk1
       if: always()
       run: |
         set -x
-        zfs get all output
-        sudo zpool export output
-        sudo qemu-nbd --disconnect "${{ runner.temp }}/dev/output"
+        zfs get all disk1
+        sudo zpool export disk1
+        sudo qemu-nbd --disconnect "${{ runner.temp }}/dev/disk1"
     - name: "Upload artifact dl directory"
       if: always()
       uses: actions/upload-artifact@v4
       with:
         name: dl-${{ inputs.tag }}-${{ inputs.arch }}-${{ job.check_run_id }}
         path: ${{ runner.temp }}/dl/
-    - name: "Upload artifact qcow2 & zpool - work"
-      if: always() && steps.export-zpool-work.outcome == 'success'
+    - name: "Upload artifact disk 0"
+      if: always() && steps.export-zpool-disk0.outcome == 'success'
       uses: actions/upload-artifact@v4
       with:
-        name: work-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2
-        path: ${{ runner.temp }}/work-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2
+        name: disk0-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2
+        path: ${{ runner.temp }}/disk0-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2
         compression-level: 0
         overwrite: true
-    - name: "Upload artifact qcow2 & zpool - output"
-      if: always() && steps.export-zpool-output.outcome == 'success'
+    - name: "Upload artifact disk 1"
+      if: always() && steps.export-zpool-disk1.outcome == 'success'
       uses: actions/upload-artifact@v4
       with:
-        name: output-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2
-        path: /mnt/output-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2
+        name: disk1-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2
+        path: /mnt/disk1-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2
         compression-level: 0
         overwrite: true

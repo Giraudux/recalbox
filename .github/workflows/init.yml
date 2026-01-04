@@ -38,7 +38,7 @@ jobs:
       with:
         name: recalbox-${{ inputs.tag }}-${{ inputs.arch }}.tar.zst
         path: ${{ runner.temp }}/recalbox-${{ inputs.tag }}-${{ inputs.arch }}.tar.zst
-  work:
+  disk0:
     runs-on: ubuntu-latest
     steps:
     # Install dependencies
@@ -46,42 +46,42 @@ jobs:
       run: |
         sudo apt update
         sudo apt install --yes zfsutils-linux qemu-utils
-    - name: "Create qcow2 & zpool"
+    - name: "Create disk 0"
       run: |
         set -x
         sudo modprobe nbd nbds_max=1
-        qemu-img create -f qcow2 "${{ runner.temp }}/work-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2" 64G
-        sudo qemu-nbd --connect /dev/nbd0 --format qcow2 "${{ runner.temp }}/work-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2"
-        sudo zpool create -O compression=zstd -m /pool/work work /dev/nbd0
-        sudo chown "$USER:$USER" /pool/work/
+        qemu-img create -f qcow2 "${{ runner.temp }}/disk0-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2" 64G
+        sudo qemu-nbd --connect /dev/nbd0 --format qcow2 "${{ runner.temp }}/disk0-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2"
+        sudo zpool create -O compression=zstd -m /pool/disk0 disk0 /dev/nbd0
+        sudo chown "$USER:$USER" /pool/disk0/
     # Clone repo
     - name: "Clone recalbox"
       run: |
-        git clone --depth 1 --shallow-submodules --recurse-submodules --branch "${{ inputs.tag }}" https://gitlab.com/recalbox/recalbox.git "/pool/work/recalbox/"
+        git clone --depth 1 --shallow-submodules --recurse-submodules --branch "${{ inputs.tag }}" https://gitlab.com/recalbox/recalbox.git "/pool/disk0/recalbox/"
     # Apply patch
     - name: "Checkout patches"
       uses: actions/checkout@v6
     - name: "Apply patches"
       run: |
         set -x
-        cd "/pool/work/recalbox/"
+        cd "/pool/disk0/recalbox/"
         set +e
         git apply "${{ github.workspace }}/patch/recalbox-themes.patch"
         git apply "${{ github.workspace }}/patch/libretro-melonds.patch"
         git apply "${{ github.workspace }}/patch/libretro-tamalibretro.patch"
     # Export zpool
-    - name: "Export zpool & Disconnect qcow2"
+    - name: "Export & disconnect disk 0"
       run: |
-        zfs get all work
-        sudo zpool export work
+        zfs get all disk0
+        sudo zpool export disk0
         sudo qemu-nbd --disconnect /dev/nbd0
-    - name: "Upload artifact qcow2 & zpool"
+    - name: "Upload artifact disk 0"
       uses: actions/upload-artifact@v4
       with:
-        name: work-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2
-        path: ${{ runner.temp }}/work-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2
+        name: disk0-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2
+        path: ${{ runner.temp }}/disk0-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2
         compression-level: 0
-  output:
+  disk1:
     runs-on: ubuntu-latest
     steps:
     # Install dependencies
@@ -89,24 +89,24 @@ jobs:
       run: |
         sudo apt update
         sudo apt install --yes zfsutils-linux qemu-utils
-    - name: "Create qcow2 & zpool"
+    - name: "Create disk 1"
       run: |
         set -x
         sudo modprobe nbd nbds_max=1
-        qemu-img create -f qcow2 "${{ runner.temp }}/output-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2" 64G
-        sudo qemu-nbd --connect /dev/nbd0 --format qcow2 "${{ runner.temp }}/output-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2"
-        sudo zpool create -O compression=zstd -m /pool/output output /dev/nbd0
-        sudo chown "$USER:$USER" /pool/output/
-        mkdir --parents /pool/output/build/.npm
+        qemu-img create -f qcow2 "${{ runner.temp }}/disk1-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2" 64G
+        sudo qemu-nbd --connect /dev/nbd0 --format qcow2 "${{ runner.temp }}/disk1-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2"
+        sudo zpool create -O compression=zstd -m /pool/disk1 disk1 /dev/nbd0
+        sudo chown "$USER:$USER" /pool/disk1/
+        mkdir --parents /pool/disk1/.npm /pool/disk1/output/build/
     # Export zpool
-    - name: "Export zpool & Disconnect qcow2"
+    - name: "Export & disconnect disk 1"
       run: |
-        zfs get all output
-        sudo zpool export output
+        zfs get all disk1
+        sudo zpool export disk1
         sudo qemu-nbd --disconnect /dev/nbd0
-    - name: "Upload artifact qcow2 & zpool"
+    - name: "Upload artifact disk 1"
       uses: actions/upload-artifact@v4
       with:
-        name: output-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2
-        path: ${{ runner.temp }}/output-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2
+        name: disk1-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2
+        path: ${{ runner.temp }}/disk1-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2
         compression-level: 0
