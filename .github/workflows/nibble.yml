@@ -148,8 +148,10 @@ jobs:
     - name: "Available disk space"
       if: always()
       run: |
-        ls --human-readable -l "${{ runner.temp }}"
+        set -x
         df --human-readable
+        du -skh "${{ runner.temp }}/*"
+        du -skh "/pool/output/*"
     # Cache
     - name: "Clear cache"
       if: always() && inputs.ccache_on
