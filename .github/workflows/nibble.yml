@@ -18,6 +18,9 @@ on:
       ccache_on:
         type: boolean
         default: true
+      dl_upload_on:
+        type: boolean
+        default: true
     outputs:
       status:
         value: ${{ jobs.build.outputs.status }}
@@ -27,6 +30,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       status: ${{ steps.build.outputs.status }}
+      dl_artifact_name: dl-${{ inputs.tag }}-${{ inputs.arch }}-${{ job.check_run_id }}
     steps:
     # Install dependencies
     - name: "Install dependencies"
@@ -120,7 +124,7 @@ jobs:
           --env "ARCH=${{ inputs.arch }}" \
           --env "RECALBOX_VERSION=${{ inputs.tag }}" \
           --env "FORCE_UNSAFE_CONFIGURE=1" \
-          --env "PACKAGE=${{ inputs.build_extra_args }}" \
+          --env "PACKAGE=BR2_BACKUP_SITE=\"${{ secrets.BR2_BACKUP_SITE }}\" ${{ inputs.build_extra_args }}" \
           --env "RECALBOX_CCACHE_ENABLED=${{ inputs.ccache_on && 'y' || '' }}" \
           --env "RECALBOX_CCACHE_MAX_SIZE=9G" \
           --user "$(id --user):$(id --group)" \
@@ -189,7 +193,7 @@ jobs:
         sudo zpool export disk1
         sudo qemu-nbd --disconnect "${{ runner.temp }}/dev/disk1"
     - name: "Upload artifact dl directory"
-      if: always()
+      if: always() && inputs.dl_upload_on
       uses: actions/upload-artifact@v4
       with:
         name: dl-${{ inputs.tag }}-${{ inputs.arch }}-${{ job.check_run_id }}
