@@ -43,7 +43,7 @@ jobs:
     uses: ./.github/workflows/upload_dl.yml
     secrets: inherit
     with:
-      dl_upload_on: ${{ inputs.dl_upload_on }}
+      dl_artifact_name: ${{ needs.nibble1.outputs.dl_artifact_name }}
   nibble2:
     needs: nibble1
     if: needs.nibble1.outputs.status == 'continue'
@@ -60,7 +60,7 @@ jobs:
     uses: ./.github/workflows/upload_dl.yml
     secrets: inherit
     with:
-      dl_upload_on: ${{ inputs.dl_upload_on }}
+      dl_artifact_name: ${{ needs.nibble2.outputs.dl_artifact_name }}
   nibble3:
     needs: nibble2
     if: needs.nibble2.outputs.status == 'continue'
@@ -77,7 +77,7 @@ jobs:
     uses: ./.github/workflows/upload_dl.yml
     secrets: inherit
     with:
-      dl_upload_on: ${{ inputs.dl_upload_on }}
+      dl_artifact_name: ${{ needs.nibble3.outputs.dl_artifact_name }}
   nibble4:
     needs: nibble3
     if: needs.nibble3.outputs.status == 'continue'
@@ -94,7 +94,7 @@ jobs:
     uses: ./.github/workflows/upload_dl.yml
     secrets: inherit
     with:
-      dl_upload_on: ${{ inputs.dl_upload_on }}
+      dl_artifact_name: ${{ needs.nibble4.outputs.dl_artifact_name }}
   nibble5:
     needs: nibble4
     if: needs.nibble4.outputs.status == 'continue'
@@ -111,7 +111,7 @@ jobs:
     uses: ./.github/workflows/upload_dl.yml
     secrets: inherit
     with:
-      dl_upload_on: ${{ inputs.dl_upload_on }}
+      dl_artifact_name: ${{ needs.nibble5.outputs.dl_artifact_name }}
   nibble6:
     needs: nibble5
     if: needs.nibble5.outputs.status == 'continue'
@@ -128,4 +128,4 @@ jobs:
     uses: ./.github/workflows/upload_dl.yml
     secrets: inherit
     with:
-      dl_upload_on: ${{ inputs.dl_upload_on }}
+      dl_artifact_name: ${{ needs.nibble6.outputs.dl_artifact_name }}
