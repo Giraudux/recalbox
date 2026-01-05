@@ -58,7 +58,7 @@ jobs:
     - name: "Clone recalbox"
       run: |
         git clone --depth 1 --shallow-submodules --recurse-submodules --branch "${{ inputs.tag }}" https://gitlab.com/recalbox/recalbox.git "/pool/disk0/recalbox/"
-        mkdir --parents /pool/disk1/recalbox/output/
+        mkdir --parents /pool/disk0/recalbox/output/
     # Apply patch
     - name: "Checkout patches"
       uses: actions/checkout@v6
