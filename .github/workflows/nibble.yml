@@ -107,11 +107,11 @@ jobs:
         (sleep "$timeout_sec" ; docker exec --user root recalbox sh -c "chmod -x /usr/bin/make") &
         if docker run --rm --security-opt seccomp=unconfined \
           --name recalbox \
-          --volume "recalbox/:/work/" \
+          --volume "${{ github.workspace }}/recalbox/:/work/" \
           --volume "/mnt/output/:/work/output/" \
           --volume "/mnt/output/build/.npm/:/.npm/" \
-          --volume "dl/:/share/dl/" \
-          --volume "ccache/:/share/ccache" \
+          --volume "${{ github.workspace }}/dl/:/share/dl/" \
+          --volume "${{ github.workspace }}/ccache/:/share/ccache" \
           --env "ARCH=${{ inputs.arch }}" \
           --env "RECALBOX_VERSION=${{ inputs.tag }}" \
           --env "FORCE_UNSAFE_CONFIGURE=1" \
