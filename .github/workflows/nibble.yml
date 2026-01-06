@@ -105,7 +105,6 @@ jobs:
         current_time_sec=$(date +%s)
         end_time_sec=$((current_time_sec + timeout_sec))
         (sleep "$timeout_sec" ; docker exec --user root recalbox sh -c "chmod -x /usr/bin/make") &
-        cd "/pool/disk0/recalbox/"
         if docker run --rm --security-opt seccomp=unconfined \
           --name recalbox \
           --volume "recalbox/:/work/" \
