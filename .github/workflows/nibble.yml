@@ -135,7 +135,7 @@ jobs:
             echo "status=continue" >> "$GITHUB_OUTPUT"
           fi
         fi
-        rm -r recalbox-source/
+        rm -r recalbox/
     - name: "Upload Recalbox images"
       if: steps.build.outputs.status == 'success'
       uses: actions/upload-artifact@v4
