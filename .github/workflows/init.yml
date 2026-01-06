@@ -34,10 +34,10 @@ jobs:
       if: steps.cache-recalbox-source.outputs.cache-hit != 'true'
       run: |
         git clone --depth 1 --shallow-submodules --recurse-submodules --branch "${{ inputs.tag }}" https://gitlab.com/recalbox/recalbox.git recalbox/
-        git -C recalbox/ apply patch/docker-ccache.patch
-        git -C recalbox/ apply patch/recalbox-themes.patch
-        git -C recalbox/ apply patch/libretro-melonds.patch
-        git -C recalbox/ apply patch/libretro-tamalibretro.patch
+        git -C recalbox/ apply ../patch/docker-ccache.patch
+        git -C recalbox/ apply ../patch/recalbox-themes.patch
+        git -C recalbox/ apply ../patch/libretro-melonds.patch
+        git -C recalbox/ apply ../patch/libretro-tamalibretro.patch
         tar -caf "recalbox-${{ inputs.tag }}-source.tar.zst" recalbox/
     - name: "Build Recalbox Docker image"
       if: steps.cache-recalbox-docker-image.outputs.cache-hit != 'true'
