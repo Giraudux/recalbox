@@ -53,7 +53,6 @@ jobs:
       uses: actions/download-artifact@v5
       with:
         name: recalbox-${{ inputs.tag }}-${{ inputs.arch }}-output
-        path: recalbox-${{ inputs.tag }}-${{ inputs.arch }}-output.tar.zst
     - name: "Extract Recalbox output"
       if: steps.download-recalbox-output.outcome == 'success'
       run: |
@@ -69,7 +68,6 @@ jobs:
       uses: actions/download-artifact@v5
       with:
         name: recalbox-${{ inputs.tag }}-source
-        path: recalbox-${{ inputs.tag }}-source.tar.zst
     - name: "Extract Recalbox source"
       run: |
         tar -xf "recalbox-${{ inputs.tag }}-source.tar.zst"
@@ -78,7 +76,6 @@ jobs:
       uses: actions/download-artifact@v5
       with:
         name: recalbox-${{ inputs.tag }}-docker-image
-        path: recalbox-${{ inputs.tag }}-docker-image.tar.zst
     - name: "Load Recalbox Docker image"
       run: |
         zstdcat "recalbox-${{ inputs.tag }}-docker-image.tar.zst" | docker load
