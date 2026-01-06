@@ -50,7 +50,7 @@ jobs:
         name: recalbox-${{ inputs.tag }}-source
         path: recalbox-${{ inputs.tag }}-source.tar.zst
         compression-level: 0
-    - name: "Upload Docker image"
+    - name: "Upload Recalbox Docker image"
       uses: actions/upload-artifact@v4
       with:
         name: recalbox-${{ inputs.tag }}-docker-image
