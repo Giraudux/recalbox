@@ -11,7 +11,8 @@ on:
         type: string
       timeout:
         type: number
-        default: 16200 # 4.5 hours
+        default: 60 # 1 minute # DEBUG
+#        default: 16200 # 4.5 hours
       build_extra_args:
         type: string
         default: ""
@@ -32,17 +33,6 @@ jobs:
       status: ${{ steps.build.outputs.status }}
       dl_artifact_name: dl-${{ inputs.tag }}-${{ inputs.arch }}-${{ job.check_run_id }}
     steps:
-    # Install dependencies
-    - name: "Install dependencies"
-      run: |
-        set -x
-        mkdir --parents "${{ runner.temp }}/dev/" "${{ runner.temp }}/ccache/" "${{ runner.temp }}/dl/"
-        sudo apt update
-        sudo apt install --yes zfsutils-linux qemu-utils tree
-        sudo modprobe nbd nbds_max=2
-        ln --symbolic /dev/nbd0 "${{ runner.temp }}/dev/disk0"
-        ln --symbolic /dev/nbd1 "${{ runner.temp }}/dev/disk1"
-    # Free disk space
     - name: "Free disk space"
       uses: endersonmenezes/free-disk-space@v3
       with:
@@ -57,55 +47,60 @@ jobs:
         rm_cmd: "rmz"
         rmz_version: "3.1.1"
         testing: false
-    # Disk space available
-    - name: "Available disk space"
-      if: always()
-      run: df --human-readable
-    # Import zpool
-    - name: "Download artifact disk 1"
+    - name: "Download Recalbox output"
+      id: download-recalbox-output
+      continue-on-error: true
       uses: actions/download-artifact@v5
       with:
-        name: disk1-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2
-        path: ${{ runner.temp }}
-    - name: "Connect & import disk 1"
+        name: recalbox-${{ inputs.tag }}-${{ inputs.arch }}-output
+        path: recalbox-${{ inputs.tag }}-${{ inputs.arch }}-output.tar.zst
+    - name: "Extract Recalbox output"
+      if: steps.download-recalbox-output.outcome == 'success'
       run: |
-        set -x
-        sudo mv "${{ runner.temp }}/disk1-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2" /mnt/
-        sudo qemu-nbd --connect "${{ runner.temp }}/dev/disk1" --format qcow2 "/mnt/disk1-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2"
-        sudo zpool import -d "${{ runner.temp }}/dev/" disk1
-        zfs get all disk1
-    # Import docker image
-    - name: "Download artifact Docker image"
+        sudo chown "$USER:$USER" /mnt/
+        tar -xf "recalbox-${{ inputs.tag }}-${{ inputs.arch }}-output.tar.zst" -C /mnt/
+        rm "recalbox-${{ inputs.tag }}-${{ inputs.arch }}-output.tar.zst"
+    - name: "Create Recalbox output"
+      if: steps.download-recalbox-output.outcome != 'success'
+      run: |
+        sudo chown "$USER:$USER" /mnt/
+        mkdir -p /mnt/output/build/.npm/
+    - name: "Download Recalbox source"
       uses: actions/download-artifact@v5
       with:
-        name: recalbox-${{ inputs.tag }}-${{ inputs.arch }}.tar.zst
-        path: ${{ runner.temp }}
-    - name: "Load Docker image"
+        name: recalbox-${{ inputs.tag }}-${{ inputs.arch }}-source
+        path: recalbox-${{ inputs.tag }}-${{ inputs.arch }}-source.tar.zst
+    - name: "Extract Recalbox source"
       run: |
-        zstdcat "${{ runner.temp }}/recalbox-${{ inputs.tag }}-${{ inputs.arch }}.tar.zst" | docker load
-        rm "${{ runner.temp }}/recalbox-${{ inputs.tag }}-${{ inputs.arch }}.tar.zst"
-    - name: "Download artifact disk 0"
+        tar -xf "recalbox-${{ inputs.tag }}-${{ inputs.arch }}-source.tar.zst"
+        rm "recalbox-${{ inputs.tag }}-${{ inputs.arch }}-source.tar.zst"
+    - name: "Download Recalbox Docker image"
       uses: actions/download-artifact@v5
       with:
-        name: disk0-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2
-        path: ${{ runner.temp }}
-    - name: "Connect & import disk 0"
+        name: recalbox-${{ inputs.tag }}-docker-image
+        path: recalbox-${{ inputs.tag }}-docker-image.tar.zst
+    - name: "Load Recalbox Docker image"
       run: |
-        set -x
-        sudo qemu-nbd --connect "${{ runner.temp }}/dev/disk0" --format qcow2 "${{ runner.temp }}/disk0-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2"
-        sudo zpool import -d "${{ runner.temp }}/dev/" disk0
-        zfs get all disk0
-    # Cache
-    - name: "Restore cache"
+        zstdcat "recalbox-${{ inputs.tag }}-docker-image.tar.zst" | docker load
+        rm "recalbox-${{ inputs.tag }}-docker-image.tar.zst"
+    - name: "Restore ccache"
       if: inputs.ccache_on
-      id: cache-ccache-restore
+      id: cache-restore-ccache
       uses: actions/cache/restore@v4
       with:
-        key: ccache-${{ inputs.arch }}-${{ github.run_id }}-${{ job.check_run_id }}
-        restore-keys: ccache-${{ inputs.arch }}
-        path: ${{ runner.temp }}/ccache/
-    # Build
-    - name: "Build"
+        key: ccache-${{ github.run_id }}-${{ job.check_run_id }}
+        restore-keys: ccache
+        path: ccache.tar.zst
+    - name: "Extract ccache"
+      if: steps.cache-restore-ccache.outputs.cache-hit == 'true'
+      run: |
+        tar -xf ccache.tar.zst
+        rm ccache.tar.zst
+    - name: "Create ccache"
+      if: steps.cache-restore-ccache.outputs.cache-hit != 'true'
+      run: |
+        mkdir ccache/
+    - name: "Build Recalbox"
       id: build
       run: |
         set -x
@@ -116,22 +111,21 @@ jobs:
         cd "/pool/disk0/recalbox/"
         if docker run --rm --security-opt seccomp=unconfined \
           --name recalbox \
-          --volume "/pool/disk0/recalbox/:/work/" \
-          --volume "/pool/disk1/output/:/work/output/" \
-          --volume "/pool/disk1/.npm/:/.npm/" \
-          --volume "${{ runner.temp }}/dl/:/share/dl/" \
-          --volume "${{ runner.temp }}/ccache/:/share/ccache" \
+          --volume "recalbox/:/work/" \
+          --volume "/mnt/output/:/work/output/" \
+          --volume "/mnt/output/build/.npm/:/.npm/" \
+          --volume "dl/:/share/dl/" \
+          --volume "ccache/:/share/ccache" \
           --env "ARCH=${{ inputs.arch }}" \
           --env "RECALBOX_VERSION=${{ inputs.tag }}" \
           --env "FORCE_UNSAFE_CONFIGURE=1" \
           --env "PACKAGE=BR2_BACKUP_SITE=\"${{ secrets.BR2_BACKUP_SITE }}\" ${{ inputs.build_extra_args }}" \
           --env "RECALBOX_CCACHE_ENABLED=${{ inputs.ccache_on && 'y' || '' }}" \
-          --env "RECALBOX_CCACHE_MAX_SIZE=9G" \
+          --env "RECALBOX_CCACHE_MAX_SIZE=5G" \
           --user "$(id --user):$(id --group)" \
           recalbox
         then
           echo "status=success" >> "$GITHUB_OUTPUT"
-          ls "/pool/"*/*/
         else
           current_time_sec=$(date +%s)
           if [ "$current_time_sec" -lt "$end_time_sec" ]
@@ -142,75 +136,50 @@ jobs:
             echo "status=continue" >> "$GITHUB_OUTPUT"
           fi
         fi
-    - name: "Upload artifact images directory"
+        rm -r recalbox-source/
+    - name: "Upload Recalbox images"
       if: steps.build.outputs.status == 'success'
       uses: actions/upload-artifact@v4
       with:
-        name: images-${{ inputs.tag }}-${{ inputs.arch }}
-        path: /pool/disk1/output/images/
+        name: recalbox-${{ inputs.tag }}-${{ inputs.arch }}-output
+        path: /mnt/output/images/
         compression-level: 0
-    # Disk space available
-    - name: "Available disk space"
-      if: always()
-      run: |
-        set -x
-        df --human-readable
-        du -skh "/pool/"*/*/
-    # Cache
-    - name: "Clear cache"
+    - name: "Delete and compress cache"
       if: always() && inputs.ccache_on
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
         set -x
-        cache_keys=$(gh cache list --repo "${{ github.repository }}" --key "ccache-${{ inputs.arch }}" --json id --jq ".[].id")
+        tar --remove-files -caf ccache.tar.zst ccache/
+        set +e
+        cache_keys=$(gh cache list --repo "${{ github.repository }}" --key ccache --json id --jq ".[].id")
         for cache_key in $cache_keys
         do
-            gh cache delete --repo "${{ github.repository }}" "$cache_key" || true
+            gh cache delete --repo "${{ github.repository }}" "$cache_key"
         done
     - name: "Save cache"
-      id: cache-ccache-save
       if: always() && inputs.ccache_on
       uses: actions/cache/save@v4
       with:
-        key: ${{ steps.cache-ccache-restore.outputs.cache-primary-key }}
-        path: ${{ runner.temp }}/ccache/
-    # Export zpool
-    - name: "Export & disconnect disk 0"
-      id: export-zpool-disk0
-      if: always()
+        key: ${{ steps.cache-restore-ccache.outputs.cache-primary-key }}
+        path: ccache.tar.zst
+    - name: "Clear cache"
+      if: always() && inputs.ccache_on
       run: |
-        set -x
-        zfs get all disk0
-        sudo zpool export disk0
-        sudo qemu-nbd --disconnect "${{ runner.temp }}/dev/disk0"
-    - name: "Export & disconnect disk 1"
-      id: export-zpool-disk1
-      if: always()
-      run: |
-        set -x
-        zfs get all disk1
-        sudo zpool export disk1
-        sudo qemu-nbd --disconnect "${{ runner.temp }}/dev/disk1"
+        rm -r ccache*
     - name: "Upload artifact dl directory"
       if: always() && inputs.dl_upload_on
       uses: actions/upload-artifact@v4
       with:
-        name: dl-${{ inputs.tag }}-${{ inputs.arch }}-${{ job.check_run_id }}
-        path: ${{ runner.temp }}/dl/
-    - name: "Upload artifact disk 0"
-      if: always() && steps.export-zpool-disk0.outcome == 'success'
+        name: recalbox-dl-${{ job.check_run_id }}
+        path: dl/
+    - name: "Compress Recalbox output"
+      run: |
+        tar -caf recalbox-${{ inputs.tag }}-${{ inputs.arch }}-output.tar.zst -C /mnt/ output/
+    - name: "Upload Recalbox output"
       uses: actions/upload-artifact@v4
       with:
-        name: disk0-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2
-        path: ${{ runner.temp }}/disk0-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2
-        compression-level: 0
-        overwrite: true
-    - name: "Upload artifact disk 1"
-      if: always() && steps.export-zpool-disk1.outcome == 'success'
-      uses: actions/upload-artifact@v4
-      with:
-        name: disk1-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2
-        path: /mnt/disk1-${{ inputs.tag }}-${{ inputs.arch }}.zpool.qcow2
+        name: recalbox-${{ inputs.tag }}-${{ inputs.arch }}-output
+        path: recalbox-${{ inputs.tag }}-${{ inputs.arch }}-output.tar.zst
         compression-level: 0
         overwrite: true
