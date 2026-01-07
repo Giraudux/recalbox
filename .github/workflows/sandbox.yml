@@ -9,4 +9,6 @@ jobs:
     steps:
     - run: |
         set -x +e
-        lsof
+        readonly dev=$(findmnt --noheadings --output SOURCE /mnt/)
+        fuser -vm /mnt/
+        umount -vvv --force /mnt/
