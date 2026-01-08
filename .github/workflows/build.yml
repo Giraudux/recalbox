@@ -58,6 +58,7 @@ jobs:
       arch: ${{ inputs.arch }}
       build_extra_args: ${{ inputs.build_extra_args }}
       upload_dl: ${{ inputs.upload_dl }}
+      debug: ${{ inputs.debug }}
   upload_dl_nibble2:
     if: inputs.upload_dl
     needs: [nibble2, upload_dl_nibble1]
@@ -75,6 +76,7 @@ jobs:
       arch: ${{ inputs.arch }}
       build_extra_args: ${{ inputs.build_extra_args }}
       upload_dl: ${{ inputs.upload_dl }}
+      debug: ${{ inputs.debug }}
   upload_dl_nibble3:
     if: inputs.upload_dl
     needs: [nibble3, upload_dl_nibble2]
@@ -92,6 +94,7 @@ jobs:
       arch: ${{ inputs.arch }}
       build_extra_args: ${{ inputs.build_extra_args }}
       upload_dl: ${{ inputs.upload_dl }}
+      debug: ${{ inputs.debug }}
   upload_dl_nibble4:
     if: inputs.upload_dl
     needs: [nibble4, upload_dl_nibble3]
@@ -109,6 +112,7 @@ jobs:
       arch: ${{ inputs.arch }}
       build_extra_args: ${{ inputs.build_extra_args }}
       upload_dl: ${{ inputs.upload_dl }}
+      debug: ${{ inputs.debug }}
   upload_dl_nibble5:
     if: inputs.upload_dl
     needs: [nibble5, upload_dl_nibble4]
@@ -126,6 +130,7 @@ jobs:
       arch: ${{ inputs.arch }}
       build_extra_args: ${{ inputs.build_extra_args }}
       upload_dl: ${{ inputs.upload_dl }}
+      debug: ${{ inputs.debug }}
   upload_dl_nibble6:
     if: inputs.upload_dl
     needs: [nibble6, upload_dl_nibble5]
