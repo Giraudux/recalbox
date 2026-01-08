@@ -11,7 +11,6 @@ jobs:
   init:
     runs-on: ubuntu-latest
     steps:
-    - run: echo "set -x" >> ~/.bashrc
     - name: "Cache source"
       id: cache-recalbox-source
       uses: actions/cache@v4
