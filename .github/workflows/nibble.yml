@@ -177,7 +177,6 @@ jobs:
         path: /mnt/output/images/
         compression-level: 0
     - name: "Clear source"
-      if: always()
       run: |
         rm -rf recalbox/
     - name: "Delete previous cache"
@@ -203,22 +202,21 @@ jobs:
         key: ${{ steps.cache-restore-ccache.outputs.cache-primary-key }}
         path: ccache.tar.zst
     - name: "Clear cache"
-      if: always() && inputs.ccache
+      if: inputs.ccache
       run: |
         rm -rf ccache/ ccache.tar.zst
     - name: "Prepare dl"
-      if: always() && inputs.upload_dl
+      if: inputs.upload_dl
       run: |
         find dl/ -mindepth 2 -maxdepth 2 -type d -exec rm -rf "{}" \;
     - name: "Upload dl"
-      if: always() && inputs.upload_dl
+      if: inputs.upload_dl
       uses: actions/upload-artifact@v4
       with:
         name: recalbox-dl-${{ job.check_run_id }}
         path: dl/
         compression-level: 0
     - name: "Clear dl"
-      if: always()
       run: |
         rm -rf dl/
     - name: "Compress output"
