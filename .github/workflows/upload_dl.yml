@@ -18,5 +18,5 @@ jobs:
     - run: |
         gpg --decrypt --batch --passphrase="${{ secrets.DL_UPLOAD_GPG_PASSPHRASE }}" --output=bin/dl-upload bin/dl-upload.gpg
         chmod +x bin/dl-upload
-        cd dl/"
+        cd dl/
         find . -maxdepth 2 -type f -exec sh -c "wget --spider '${{ secrets.BR2_BACKUP_SITE }}/{}' || '${{ github.workspace }}/bin/dl-upload' upload '{}'" \;
