@@ -116,6 +116,7 @@ jobs:
       if: inputs.ccache && steps.cache-restore-ccache.outputs.cache-matched-key == ''
       run: |
         mkdir ccache/
+        CCACHE_DIR=${{ github.workspace }}/ccache ccache -M "${{ inputs.ccache_size }}G"
     - name: "Create dl"
       run: |
         mkdir dl/
