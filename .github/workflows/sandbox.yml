@@ -18,8 +18,10 @@ jobs:
         name: recalbox-dl-${{ github.run_id }}-${{ job.check_run_id }}
         path: dl/
         compression-level: 0
+    - run: rm -r dl/
     - uses: actions/download-artifact@v5
       with:
         name: recalbox-dl-${{ github.run_id }}-${{ job.check_run_id }}
+        path: dl/
     - run: |
         tree
