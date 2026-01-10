@@ -2,19 +2,26 @@ name: sandbox
 
 on:
   workflow_dispatch:
-    inputs:
-      ccache_enable:
-        type: boolean
-        default: true
-      ccache_clear:
-        type: boolean
-        default: false
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-    # Install dependencies
     - run: |
-        set -x
-        echo "var=${{ inputs.ccache_enable && 'yes' || '' }}"
+        sudo apt update
+        sudo apt install -y tree
+        mkdir dl/
+        touch dl/test
+    - name: "Upload dl"
+      uses: actions/upload-artifact@v4
+      with:
+        name: recalbox-dl-${{ github.run_id }}-${{ job.check_run_id }}
+        path: dl/
+        compression-level: 0
+    - run: rm -r dl/
+    - uses: actions/download-artifact@v5
+      with:
+        name: recalbox-dl-${{ github.run_id }}-${{ job.check_run_id }}
+        path: dl/
+    - run: |
+        tree

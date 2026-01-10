@@ -17,17 +17,20 @@ on:
         description: "Build extra args"
         type: string
         default: ""
-      dl_upload_on:
+      upload_dl:
         description: "Upload DL"
         type: boolean
         default: true
+      debug:
+        description: "Debug"
+        type: boolean
+        default: false
 
 jobs:
   init:
     uses: ./.github/workflows/init.yml
     with:
       tag: ${{ inputs.tag }}
-      arch: ${{ inputs.arch }}
   nibble1:
     needs: init
     uses: ./.github/workflows/nibble.yml
@@ -36,9 +39,10 @@ jobs:
       tag: ${{ inputs.tag }}
       arch: ${{ inputs.arch }}
       build_extra_args: ${{ inputs.build_extra_args }}
-      dl_upload_on: ${{ inputs.dl_upload_on }}
+      upload_dl: ${{ inputs.upload_dl }}
+      debug: ${{ inputs.debug }}
   upload_dl_nibble1:
-    if: inputs.dl_upload_on
+    if: inputs.upload_dl
     needs: nibble1
     uses: ./.github/workflows/upload_dl.yml
     secrets: inherit
@@ -53,9 +57,10 @@ jobs:
       tag: ${{ inputs.tag }}
       arch: ${{ inputs.arch }}
       build_extra_args: ${{ inputs.build_extra_args }}
-      dl_upload_on: ${{ inputs.dl_upload_on }}
+      upload_dl: ${{ inputs.upload_dl }}
+      debug: ${{ inputs.debug }}
   upload_dl_nibble2:
-    if: inputs.dl_upload_on
+    if: inputs.upload_dl
     needs: [nibble2, upload_dl_nibble1]
     uses: ./.github/workflows/upload_dl.yml
     secrets: inherit
@@ -70,9 +75,10 @@ jobs:
       tag: ${{ inputs.tag }}
       arch: ${{ inputs.arch }}
       build_extra_args: ${{ inputs.build_extra_args }}
-      dl_upload_on: ${{ inputs.dl_upload_on }}
+      upload_dl: ${{ inputs.upload_dl }}
+      debug: ${{ inputs.debug }}
   upload_dl_nibble3:
-    if: inputs.dl_upload_on
+    if: inputs.upload_dl
     needs: [nibble3, upload_dl_nibble2]
     uses: ./.github/workflows/upload_dl.yml
     secrets: inherit
@@ -87,9 +93,10 @@ jobs:
       tag: ${{ inputs.tag }}
       arch: ${{ inputs.arch }}
       build_extra_args: ${{ inputs.build_extra_args }}
-      dl_upload_on: ${{ inputs.dl_upload_on }}
+      upload_dl: ${{ inputs.upload_dl }}
+      debug: ${{ inputs.debug }}
   upload_dl_nibble4:
-    if: inputs.dl_upload_on
+    if: inputs.upload_dl
     needs: [nibble4, upload_dl_nibble3]
     uses: ./.github/workflows/upload_dl.yml
     secrets: inherit
@@ -104,9 +111,10 @@ jobs:
       tag: ${{ inputs.tag }}
       arch: ${{ inputs.arch }}
       build_extra_args: ${{ inputs.build_extra_args }}
-      dl_upload_on: ${{ inputs.dl_upload_on }}
+      upload_dl: ${{ inputs.upload_dl }}
+      debug: ${{ inputs.debug }}
   upload_dl_nibble5:
-    if: inputs.dl_upload_on
+    if: inputs.upload_dl
     needs: [nibble5, upload_dl_nibble4]
     uses: ./.github/workflows/upload_dl.yml
     secrets: inherit
@@ -121,9 +129,10 @@ jobs:
       tag: ${{ inputs.tag }}
       arch: ${{ inputs.arch }}
       build_extra_args: ${{ inputs.build_extra_args }}
-      dl_upload_on: ${{ inputs.dl_upload_on }}
+      upload_dl: ${{ inputs.upload_dl }}
+      debug: ${{ inputs.debug }}
   upload_dl_nibble6:
-    if: inputs.dl_upload_on
+    if: inputs.upload_dl
     needs: [nibble6, upload_dl_nibble5]
     uses: ./.github/workflows/upload_dl.yml
     secrets: inherit
