@@ -31,7 +31,6 @@ jobs:
     uses: ./.github/workflows/init.yml
     with:
       tag: ${{ inputs.tag }}
-      arch: ${{ inputs.arch }}
   download:
     if: inputs.remote_storage
     uses: ./.github/workflows/download.yml
