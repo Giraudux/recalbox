@@ -123,6 +123,7 @@ jobs:
     - name: "Build"
       id: build
       run: |
+        echo "::add-mask::${{ secrets.MASK_0 }}"
         set -x
         readonly timeout_sec="${{ inputs.timeout }}"
         current_time_sec=$(date +%s)
