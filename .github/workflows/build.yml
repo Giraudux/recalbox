@@ -38,10 +38,6 @@ on:
         description: "Use remote storage"
         type: boolean
         default: true
-      skip_init:
-        description: "Skip init"
-        type: boolean
-        default: false
       release:
         description: "Create release"
         default: false
