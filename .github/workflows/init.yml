@@ -26,7 +26,7 @@ jobs:
       with:
         remove_swap: true
     - name: "Checkout patches"
-      if: steps.cache-recalbox.outputs.cache-hit != 'true'
+      if: steps.cache-recalbox.outputs.cache-hit != 'true' || inputs.release != ''
       uses: actions/checkout@v6
     - name: "Create Recalbox"
       if: steps.cache-recalbox.outputs.cache-hit != 'true'
@@ -57,5 +57,5 @@ jobs:
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        wget "https://gitlab.com/recalbox/recalbox/-/raw/${{ inputs.tag }}/RELEASE-NOTES.md"
-        gh release create "${{ inputs.release }}" --notes-file=RELEASE-NOTES.md
+        wget --directory-prefix="${{ runner.temp }}" "https://gitlab.com/recalbox/recalbox/-/raw/${{ inputs.tag }}/RELEASE-NOTES.md"
+        gh release create "${{ inputs.release }}" --notes-file="${{ runner.temp }}/RELEASE-NOTES.md"
