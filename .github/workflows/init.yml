@@ -57,4 +57,5 @@ jobs:
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        gh release create "${{ inputs.release }}" --notes-file=/mnt/recalbox/RELEASE-NOTES.md
+        wget "https://gitlab.com/recalbox/recalbox/-/raw/${{ inputs.tag }}/RELEASE-NOTES.md"
+        gh release create "${{ inputs.release }}" --notes-file=RELEASE-NOTES.md
