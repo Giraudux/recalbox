@@ -72,9 +72,9 @@ jobs:
     - name: "Import Recalbox"
       run: |
         set -x
-        sudo zfs receive -F mnt < "recalbox-${{ inputs.tag }}.zst"
+        sudo zfs receive -F mnt < "recalbox-${{ inputs.tag }}.zfs"
         sudo zfs destroy mnt@%
-        rm "recalbox-${{ inputs.tag }}.zst"
+        rm "recalbox-${{ inputs.tag }}.zfs"
     - name: "Load Docker image"
       run: |
         docker load --input /mnt/recalbox.tar
