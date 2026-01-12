@@ -39,6 +39,7 @@ jobs:
       matrix:
         arch: [odroidgo2, rg353x, rpi3, rpi4_64, rpi5_64, rpizero2, x86_64]
     uses: ./.github/workflows/build.yml
+    secrets: inherit
     with:
       tag: ${{ needs.tag.outputs.tag }}
       arch: ${{ matrix.arch }}
