@@ -7,59 +7,54 @@ on:
         required: true
         type: string
       release:
-        default: false
-        type: boolean
+        default: ''
+        type: string
 
 jobs:
   init:
     runs-on: ubuntu-latest
     steps:
-    - name: "Cache source"
-      id: cache-recalbox-source
+    - name: "Cache Recalbox"
+      id: cache-recalbox
       uses: actions/cache@v4
       with:
-        key: recalbox-${{ inputs.tag }}-source
-        path: recalbox-${{ inputs.tag }}-source.tar.zst
-    - name: "Cache Docker image"
-      id: cache-recalbox-docker-image
-      uses: actions/cache@v4
+        key: recalbox-${{ inputs.tag }}
+        path: recalbox-${{ inputs.tag }}.zfs
+    - name: "Remove swap"
+      if: steps.cache-recalbox.outputs.cache-hit != 'true'
+      uses: endersonmenezes/free-disk-space@v3
       with:
-        key: recalbox-${{ inputs.tag }}-docker-image
-        path: recalbox-${{ inputs.tag }}-docker-image.tar.zst
-    - name: "Extract source"
-      if: steps.cache-recalbox-source.outputs.cache-hit == 'true' && (steps.cache-recalbox-docker-image.outputs.cache-hit != 'true' || inputs.release)
-      run: |
-        tar -xf "recalbox-${{ inputs.tag }}-source.tar.zst"
+        remove_swap: true
     - name: "Checkout patches"
-      if: steps.cache-recalbox-source.outputs.cache-hit != 'true'
+      if: steps.cache-recalbox.outputs.cache-hit != 'true'
       uses: actions/checkout@v6
-    - name: "Checkout source"
-      if: steps.cache-recalbox-source.outputs.cache-hit != 'true'
+    - name: "Create Recalbox"
+      if: steps.cache-recalbox.outputs.cache-hit != 'true'
       run: |
-        git clone --depth 1 --shallow-submodules --recurse-submodules --branch "${{ inputs.tag }}" https://gitlab.com/recalbox/recalbox.git recalbox/
-        git -C recalbox/ apply ${{ github.workspace }}/patch/docker-ccache.patch
-        git -C recalbox/ apply ${{ github.workspace }}/patch/recalbox-themes.patch
-        tar -caf "recalbox-${{ inputs.tag }}-source.tar.zst" recalbox/
+        set -x
+        sudo apt update
+        sudo apt install --yes zfsutils-linux
+        readonly device=/dev/$(lsblk --noheadings --output PKNAME "$(findmnt --noheadings --output SOURCE /mnt/)")
+        sudo umount /mnt/
+        sudo zpool create -O compression=zstd mnt "$device"
+        sudo chown "$USER:$USER" /mnt/
+        mkdir --parents /mnt/output/build/.npm/
+        git clone --depth 1 --shallow-submodules --recurse-submodules --branch "${{ inputs.tag }}" https://gitlab.com/recalbox/recalbox.git /mnt/recalbox/
+        git -C /mnt/recalbox/ apply "${{ github.workspace }}/patch/docker-ccache.patch"
+        git -C /mnt/recalbox/ apply "${{ github.workspace }}/patch/recalbox-themes.patch"
+        docker build --tag recalbox /mnt/recalbox/
+        docker save --output /mnt/recalbox.tar recalbox
+        sudo zfs snapshot mnt@init
+        sudo zfs send mnt@init > "recalbox-${{ inputs.tag }}.zfs"
+    - name: "Upload Recalbox"
+      uses: actions/upload-artifact@v4
+      with:
+        name: recalbox-${{ inputs.tag }}
+        path: recalbox-${{ inputs.tag }}.zfs
+        compression-level: 0
     - name: "Create release"
-      if: inputs.release
+      if: inputs.release != ''
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        gh release create "${{ inputs.tag }}" --notes-file=recalbox/RELEASE-NOTES.md
-    - name: "Build Docker image"
-      if: steps.cache-recalbox-docker-image.outputs.cache-hit != 'true'
-      run: |
-        docker build --tag recalbox recalbox/
-        docker save recalbox | zstd -o "recalbox-${{ inputs.tag }}-docker-image.tar.zst"
-    - name: "Upload source"
-      uses: actions/upload-artifact@v4
-      with:
-        name: recalbox-${{ inputs.tag }}-source
-        path: recalbox-${{ inputs.tag }}-source.tar.zst
-        compression-level: 0
-    - name: "Upload Docker image"
-      uses: actions/upload-artifact@v4
-      with:
-        name: recalbox-${{ inputs.tag }}-docker-image
-        path: recalbox-${{ inputs.tag }}-docker-image.tar.zst
-        compression-level: 0
+        gh release create "${{ inputs.release }}" --notes-file=recalbox/RELEASE-NOTES.md

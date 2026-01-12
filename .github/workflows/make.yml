@@ -14,7 +14,7 @@ on:
         default: 14400 # 4 hours
       build_extra_args:
         type: string
-        default: ""
+        default: ''
       ccache:
         type: boolean
         default: true
@@ -22,8 +22,8 @@ on:
         type: number
         default: 8
       release:
-        default: false
-        type: boolean
+        default: ''
+        type: string
     outputs:
       status:
         value: ${{ jobs.build.outputs.status }}
@@ -58,38 +58,26 @@ jobs:
         readonly device=/dev/$(lsblk --noheadings --output PKNAME "$(findmnt --noheadings --output SOURCE /mnt/)")
         sudo umount /mnt/
         sudo zpool create -O compression=zstd mnt "$device"
-        sudo chown "$USER:$USER" /mnt/
-    - name: "Download output"
-      id: download-output
+    - name: "Download Recalbox"
+      id: download-recalbox
       continue-on-error: true
       uses: actions/download-artifact@v5
       with:
-        name: recalbox-${{ inputs.arch }}-output
-    - name: "Extract output"
-      if: steps.download-output.outcome == 'success'
-      run: |
-        tar -xf "recalbox-${{ inputs.arch }}-output.tar.zst" -C /mnt/
-        rm "recalbox-${{ inputs.arch }}-output.tar.zst"
-    - name: "Create output"
-      if: steps.download-output.outcome != 'success'
-      run: |
-        mkdir -p /mnt/output/build/.npm/
-    - name: "Download source"
+        name: recalbox-${{ inputs.tag }}-${{ inputs.arch }}
+    - name: "Download Recalbox"
+      if: steps.download-recalbox.outcome != 'success'
       uses: actions/download-artifact@v5
       with:
-        name: recalbox-${{ inputs.tag }}-source
-    - name: "Extract source"
+        name: recalbox-${{ inputs.tag }}
+    - name: "Import Recalbox"
       run: |
-        tar -xf "recalbox-${{ inputs.tag }}-source.tar.zst"
-        rm "recalbox-${{ inputs.tag }}-source.tar.zst"
-    - name: "Download Docker image"
-      uses: actions/download-artifact@v5
-      with:
-        name: recalbox-${{ inputs.tag }}-docker-image
+        set -x
+        sudo zfs receive -F mnt < "recalbox-${{ inputs.tag }}.zst"
+        sudo zfs destroy mnt@%
+        rm "recalbox-${{ inputs.tag }}.zst"
     - name: "Load Docker image"
       run: |
-        zstdcat "recalbox-${{ inputs.tag }}-docker-image.tar.zst" | docker load
-        rm "recalbox-${{ inputs.tag }}-docker-image.tar.zst"
+        docker load --input /mnt/recalbox.tar
     - name: "Download ccache"
       if: inputs.ccache
       id: download-ccache
@@ -116,9 +104,9 @@ jobs:
       continue-on-error: true
       run: |
         set -x +e
-        ls -l
+        ls -lh . /mnt
         df -h
-        du -hs ccache/ dl/ recalbox/ /mnt/output/
+        du -hs ccache/ dl/ /mnt/*
         CCACHE_DIR="${{ github.workspace }}/ccache" ccache -s
     - name: "Build"
       id: build
@@ -131,7 +119,7 @@ jobs:
         (sleep "$timeout_sec" ; docker exec --user root recalbox sh -c "chmod -x /usr/bin/make") &
         if docker run --rm --security-opt seccomp=unconfined \
           --name recalbox \
-          --volume "${{ github.workspace }}/recalbox/:/work/" \
+          --volume "/mnt/recalbox/:/work/" \
           --volume "/mnt/output/:/work/output/" \
           --volume "/mnt/output/build/.npm/:/.npm/" \
           --volume "${{ github.workspace }}/dl/:/share/dl/" \
@@ -161,9 +149,9 @@ jobs:
       continue-on-error: true
       run: |
         set -x +e
-        ls -l
+        ls -lh . /mnt
         df -h
-        du -hs ccache/ dl/ recalbox/ /mnt/output/
+        du -hs ccache/ dl/ /mnt/*
         CCACHE_DIR="${{ github.workspace }}/ccache" ccache -s
     - name: "Upload images"
       if: steps.build.outputs.status == 'success'
@@ -173,14 +161,11 @@ jobs:
         path: /mnt/output/images/
         compression-level: 0
     - name: "Upload release"
-      if: steps.build.outputs.status == 'success' && inputs.release
+      if: steps.build.outputs.status == 'success' && inputs.release != ''
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        gh release upload "${{ inputs.tag }}" /mnt/output/images/*
-    - name: "Clear source"
-      run: |
-        rm -rf recalbox/
+        gh release upload "${{ inputs.release }}" /mnt/output/images/*
     - name: "Compress ccache"
       run: |
         tar --remove-files -caf recalbox-${{ inputs.arch }}-ccache.tar.zst ccache/
@@ -195,7 +180,7 @@ jobs:
       if: inputs.ccache
       run: |
         rm -rf ccache/ recalbox-${{ inputs.arch }}-ccache.tar.zst
-    - name: "Prepare dl"
+    - name: "Cleanup dl"
       run: |
         find dl/ -mindepth 2 -maxdepth 2 -type d -exec rm -rf "{}" \;
     - name: "Upload dl"
@@ -208,13 +193,14 @@ jobs:
     - name: "Clear dl"
       run: |
         rm -rf dl/
-    - name: "Compress output"
+    - name: "Export Recalbox"
       run: |
-        tar -caf recalbox-${{ inputs.arch }}-output.tar.zst -C /mnt/ output/
-    - name: "Upload output"
+        sudo zfs snapshot "mnt@make-${{ job.check_run_id }}"
+        sudo zfs send "mnt@make-${{ job.check_run_id }}" > "recalbox-${{ inputs.tag }}.zfs"
+    - name: "Upload Recalbox"
       uses: actions/upload-artifact@v4
       with:
-        name: recalbox-${{ inputs.arch }}-output
-        path: recalbox-${{ inputs.arch }}-output.tar.zst
+        name: recalbox-${{ inputs.tag }}-${{ inputs.arch }}
+        path: recalbox-${{ inputs.tag }}.zfs
         compression-level: 0
         overwrite: true
