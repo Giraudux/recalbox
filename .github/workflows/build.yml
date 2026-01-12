@@ -15,9 +15,6 @@ on:
       remote_storage:
         type: boolean
         default: true
-      skip_init:
-        type: boolean
-        default: true
       release:
         default: true
         type: boolean
@@ -52,7 +49,6 @@ on:
 
 jobs:
   init:
-    if: ! inputs.skip_init
     uses: ./.github/workflows/init.yml
     with:
       tag: ${{ inputs.tag }}
