@@ -39,7 +39,7 @@ on:
         type: boolean
         default: true
       release:
-        description: "Create release"
+        description: "Create and upload release"
         default: ''
         type: string
 
