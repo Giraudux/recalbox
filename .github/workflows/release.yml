@@ -4,13 +4,13 @@ on:
   workflow_call:
     inputs:
       tag:
-        required: true
         type: string
+        default: ''
   workflow_dispatch: 
     inputs:
       tag:
-        required: true
         type: string
+        default: ''
 
 jobs:
   tag:
