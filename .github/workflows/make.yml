@@ -157,8 +157,8 @@ jobs:
       if: steps.build.outputs.status == 'success'
       uses: actions/upload-artifact@v4
       with:
-        name: recalbox-${{ inputs.tag }}-${{ inputs.arch }}-images
-        path: /mnt/output/images/
+        name: image-${{ inputs.arch }}
+        path: /mnt/output/images/recalbox/*.img.xz*
         compression-level: 0
     # - name: "Upload release"
     #   if: steps.build.outputs.status == 'success' && inputs.release != ''
