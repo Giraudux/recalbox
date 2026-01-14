@@ -9,6 +9,9 @@ on:
       arch:
         required: true
         type: string
+      release:
+        type: boolean
+        default: true
   workflow_dispatch:
     inputs:
       tag:
@@ -21,6 +24,10 @@ on:
         default: 'rpi5_64'
         required: true
         type: string
+      release:
+        description: "Release"
+        type: boolean
+        default: false
 
 jobs:
   init:
@@ -42,6 +49,7 @@ jobs:
     with:
       tag: ${{ inputs.tag }}
       arch: ${{ inputs.arch }}
+      release: ${{ inputs.release }}
   status:
     if: needs.make.outputs.status != 'success'
     runs-on: ubuntu-slim

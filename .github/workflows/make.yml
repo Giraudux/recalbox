@@ -24,6 +24,9 @@ on:
       remote_storage:
         type: boolean
         default: true
+      release:
+        type: boolean
+        default: false
     outputs:
       status:
         value: ${{ jobs.make.outputs.status }}
@@ -149,12 +152,18 @@ jobs:
         du -hs ccache/ dl/ /mnt/*
         CCACHE_DIR="${{ github.workspace }}/ccache" ccache -s
     - name: "Upload images"
-      if: steps.make.outputs.status == 'success'
+      if: steps.make.outputs.status == 'success' && ! inputs.release
       uses: actions/upload-artifact@v4
       with:
         name: image-${{ inputs.arch }}
         path: /mnt/output/images/recalbox/*.img.xz*
         compression-level: 0
+    - name: "Release images"
+      if: steps.make.outputs.status == 'success' && inputs.release
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        gh release upload --clobber "${{ inputs.tag }}" /mnt/output/images/*.img.xz*
     - name: "Compress ccache"
       run: |
         tar --remove-files -caf recalbox-${{ inputs.arch }}-ccache.tar.zst ccache/

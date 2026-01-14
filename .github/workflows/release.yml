@@ -11,6 +11,28 @@ on:
       tag:
         type: string
         default: ''
+      arch_odroidgo2:
+        type: boolean
+        default: false
+      arch_rg353x:
+        type: boolean
+        default: true
+      arch_rpi3:
+        type: boolean
+        default: true
+      arch_rpi4_64:
+        type: boolean
+        default: true
+      arch_rpi5_64:
+        type: boolean
+        default: true
+      arch_rpizero2:
+        type: boolean
+        default: true
+      arch_x86_64:
+        type: boolean
+        default: true
+
 
 jobs:
   tag:
@@ -28,28 +50,27 @@ jobs:
             echo "tag=${{ inputs.tag }}" >> "$GITHUB_OUTPUT"
         fi
     - name: "Create release"
-      continue-on-error: true
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
         wget --directory-prefix="${{ runner.temp }}" "https://gitlab.com/recalbox/recalbox/-/raw/${{ inputs.tag }}/RELEASE-NOTES.md"
         gh release create "${{ steps.tag.outputs.tag }}" --notes-file="${{ runner.temp }}/RELEASE-NOTES.md"
-
-  init:
-    needs: tag
-    uses: ./.github/workflows/init.yml
-    with:
-      tag: ${{ needs.tag.outputs.tag }}
-      release: ${{ needs.tag.outputs.tag }}
   build:
-    needs: [init, tag]
+    needs: tag
     strategy:
+      max-parallel: 2
       matrix:
-        # odroidgo2
-        arch: [rg353x, rpi3, rpi4_64, rpi5_64, rpizero2, x86_64]
+        arch: [odroidgo2, rg353x, rpi3, rpi4_64, rpi5_64, rpizero2, x86_64]
+        exclude:
+          - arch: ${{ ! inputs.arch_odroidgo2 && 'odroidgo2' }}
+          - arch: ${{ ! inputs.arch_rg353x && 'rg353x' }}
+          - arch: ${{ ! inputs.arch_rpi3 && 'rpi3' }}
+          - arch: ${{ ! inputs.arch_rpi4_64 && 'rpi4_64' }}
+          - arch: ${{ ! inputs.arch_rpi5_64 && 'rpi5_64' }}
+          - arch: ${{ ! inputs.arch_rpizero2 && 'rpizero2' }}
+          - arch: ${{ ! inputs.arch_x86_64 && 'x86_64' }}
     uses: ./.github/workflows/build.yml
     secrets: inherit
     with:
       tag: ${{ needs.tag.outputs.tag }}
       arch: ${{ matrix.arch }}
-      release: ${{ needs.tag.outputs.tag }}
