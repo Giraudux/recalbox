@@ -65,6 +65,7 @@ jobs:
   build:
     needs: tag
     strategy:
+      max-parallel: 2
       matrix:
         arch: [odroidgo2, rg353x, rpi3, rpi4_64, rpi5_64, rpizero2, x86_64]
         exclude:
