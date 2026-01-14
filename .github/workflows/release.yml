@@ -56,8 +56,8 @@ jobs:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
         set -x
-        release=$(gh release list --jq '.[]|select(.tagName=="${{ steps.tag.outputs.tag }}")')
-        if [ -z "$release" ]
+        tag=$(gh release list --json tagName --jq '.[]|select(.tagName=="${{ steps.tag.outputs.tag }}")')
+        if [ -z "$tag" ]
         then
           wget "https://gitlab.com/recalbox/recalbox/-/raw/${{ steps.tag.outputs.tag }}/RELEASE-NOTES.md"
           gh release create "${{ steps.tag.outputs.tag }}" --notes-file=RELEASE-NOTES.md
