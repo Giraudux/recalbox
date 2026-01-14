@@ -13,7 +13,7 @@ on:
     inputs:
       tag:
         description: 'Tag'
-        default: '10.0-patron-4'
+        default: '10.0-patron-5'
         required: true
         type: string
       arch:
