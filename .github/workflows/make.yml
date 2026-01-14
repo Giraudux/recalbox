@@ -33,8 +33,6 @@ on:
 
 jobs:
   make:
-    concurrency:
-      group: lock-make-${{ inputs.arch }}-${{ github.run_id }}
     runs-on: ubuntu-latest
     outputs:
       status: ${{ steps.make.outputs.status }}
@@ -202,15 +200,6 @@ jobs:
         path: recalbox-${{ inputs.tag }}.zfs.zst
         compression-level: 0
         overwrite: true
-  cancel:
-    needs: make
-    if: needs.make.outputs.status != 'continue'
-    runs-on: ubuntu-slim
-    concurrency:
-      group: lock-make-${{ inputs.arch }}-${{ github.run_id }}
-      cancel-in-progress: true
-    steps:
-    - run: true
   upload:
     if: inputs.remote_storage
     needs: make
@@ -248,3 +237,12 @@ jobs:
       continue-on-error: true
       run: |
         rm "recalbox-${{ inputs.arch }}-ccache.tar.zst"
+  cancel:
+    needs: [make, upload]
+    if: needs.make.outputs.status != 'continue'
+    runs-on: ubuntu-slim
+    concurrency:
+      group: lock-build-${{ inputs.arch }}-${{ github.run_id }}
+      cancel-in-progress: true
+    steps:
+    - run: true
