@@ -62,7 +62,6 @@ jobs:
           wget "https://gitlab.com/recalbox/recalbox/-/raw/${{ steps.tag.outputs.tag }}/RELEASE-NOTES.md"
           gh release create "${{ steps.tag.outputs.tag }}" --notes-file=RELEASE-NOTES.md
         fi
-        false
   build:
     needs: tag
     strategy:
