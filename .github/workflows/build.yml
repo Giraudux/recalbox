@@ -33,6 +33,7 @@ jobs:
     name: make${{ matrix.id }}
     strategy:
       fail-fast: true
+      max-parallel: 2
       matrix:
         id: [1, 2, 3, 4, 5, 6]
     needs: init
