@@ -210,14 +210,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v6
-    - run: |
+    - name: "Decrypt remote-storage"
+      run: |
         gpg --decrypt --batch --passphrase="${{ secrets.REMOTE_STORAGE_GPG_PASSPHRASE }}" --output=bin/remote-storage bin/remote-storage.gpg
         chmod +x bin/remote-storage
     - uses: actions/download-artifact@v5
       with:
         name: recalbox-${{ inputs.arch }}-dl
         path: dl/
-    - run: |
+    - name: "Upload dl"
+      continue-on-error: true
+      run: |
         echo "::add-mask::${{ secrets.MASK_0 }}"
         (
           cd dl/
@@ -228,7 +231,9 @@ jobs:
     - uses: actions/download-artifact@v5
       with:
         name: recalbox-${{ inputs.arch }}-ccache
-    - run: |
+    - name: "Upload ccache"
+      continue-on-error: true
+      run: |
         echo "::add-mask::${{ secrets.MASK_0 }}"
         "${{ github.workspace }}/bin/remote-storage" upload "recalbox-${{ inputs.arch }}-ccache.tar.zst"
         rm "recalbox-${{ inputs.arch }}-ccache.tar.zst"
