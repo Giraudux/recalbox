@@ -80,12 +80,12 @@ jobs:
       continue-on-error: true
       uses: actions/download-artifact@v5
       with:
-        name: recalbox-${{ inputs.arch }}-ccache
+        name: ccache-${{ inputs.arch }}
     - name: "Extract & cleanup ccache"
       if: inputs.ccache && steps.download-ccache.outcome == 'success'
       run: |
-        tar -xf "recalbox-${{ inputs.arch }}-ccache.tar.zst"
-        rm "recalbox-${{ inputs.arch }}-ccache.tar.zst"
+        tar -xf "ccache-${{ inputs.arch }}.tar.zst"
+        rm "ccache-${{ inputs.arch }}.tar.zst"
         CCACHE_DIR="${{ github.workspace }}/ccache" ccache -M "${{ inputs.ccache_size }}G" --cleanup
     - name: "Create ccache"
       if: inputs.ccache && steps.download-ccache.outcome != 'success'
@@ -164,25 +164,25 @@ jobs:
         gh release upload --clobber "${{ inputs.tag }}" /mnt/output/images/*.img.xz*
     - name: "Compress ccache"
       run: |
-        tar --remove-files -caf recalbox-${{ inputs.arch }}-ccache.tar.zst ccache/
+        tar --remove-files -caf ccache-${{ inputs.arch }}.tar.zst ccache/
     - name: "Upload ccache"
       uses: actions/upload-artifact@v4
       with:
-        name: recalbox-${{ inputs.arch }}-ccache
-        path: recalbox-${{ inputs.arch }}-ccache.tar.zst
+        name: ccache-${{ inputs.arch }}
+        path: ccache-${{ inputs.arch }}.tar.zst
         compression-level: 0
         overwrite: true
     - name: "Clear cache"
       if: inputs.ccache
       run: |
-        rm -rf ccache/ recalbox-${{ inputs.arch }}-ccache.tar.zst
+        rm -rf ccache/ ccache-${{ inputs.arch }}.tar.zst
     - name: "Cleanup dl"
       run: |
         find dl/ -mindepth 2 -maxdepth 2 -type d -exec rm -rf "{}" \;
     - name: "Upload dl"
       uses: actions/upload-artifact@v4
       with:
-        name: recalbox-${{ inputs.arch }}-dl
+        name: dl-${{ inputs.arch }}
         path: dl/
         compression-level: 0
         overwrite: true
@@ -214,7 +214,7 @@ jobs:
         chmod +x bin/remote-storage
     - uses: actions/download-artifact@v5
       with:
-        name: recalbox-${{ inputs.arch }}-dl
+        name: dl-${{ inputs.arch }}
         path: dl/
     - name: "Upload dl"
       continue-on-error: true
@@ -227,22 +227,13 @@ jobs:
         rm -r dl/
     - uses: actions/download-artifact@v5
       with:
-        name: recalbox-${{ inputs.arch }}-ccache
+        name: ccache-${{ inputs.arch }}
     - name: "Upload ccache"
       continue-on-error: true
       run: |
         echo "::add-mask::${{ secrets.MASK_0 }}"
-        "${{ github.workspace }}/bin/remote-storage" upload "recalbox-${{ inputs.arch }}-ccache.tar.zst"
+        "${{ github.workspace }}/bin/remote-storage" upload "ccache-${{ inputs.arch }}.tar.zst"
     - name: "Cleanup ccache"
       continue-on-error: true
       run: |
-        rm "recalbox-${{ inputs.arch }}-ccache.tar.zst"
-  cancel:
-    needs: [make, upload]
-    if: needs.make.outputs.status != 'continue'
-    runs-on: ubuntu-slim
-    concurrency:
-      group: lock-build-${{ inputs.arch }}-${{ github.run_id }}
-      cancel-in-progress: true
-    steps:
-    - run: exit
+        rm "ccache-${{ inputs.arch }}.tar.zst"

@@ -36,15 +36,7 @@ jobs:
     with:
       tag: ${{ inputs.tag }}
       arch: ${{ inputs.arch }}
-  make:
-    concurrency:
-      group: lock-build-${{ inputs.arch }}-${{ github.run_id }}
-    name: make${{ matrix.id }}
-    strategy:
-      fail-fast: true
-      max-parallel: 1
-      matrix:
-        id: [1, 2, 3, 4, 5, 6]
+  make1:
     needs: init
     uses: ./.github/workflows/make.yml
     secrets: inherit
@@ -52,9 +44,48 @@ jobs:
       tag: ${{ inputs.tag }}
       arch: ${{ inputs.arch }}
       release: ${{ inputs.release }}
-  status:
-    if: needs.make.outputs.status != 'success'
-    runs-on: ubuntu-slim
-    needs: make
-    steps:
-    - run: false
+  make2:
+    needs: make1
+    if: needs.make1.outputs.status == 'continue'
+    uses: ./.github/workflows/make.yml
+    secrets: inherit
+    with:
+      tag: ${{ inputs.tag }}
+      arch: ${{ inputs.arch }}
+      release: ${{ inputs.release }}
+  make3:
+    needs: make2
+    if: needs.make2.outputs.status == 'continue'
+    uses: ./.github/workflows/make.yml
+    secrets: inherit
+    with:
+      tag: ${{ inputs.tag }}
+      arch: ${{ inputs.arch }}
+      release: ${{ inputs.release }}
+  make4:
+    needs: make3
+    if: needs.make3.outputs.status == 'continue'
+    uses: ./.github/workflows/make.yml
+    secrets: inherit
+    with:
+      tag: ${{ inputs.tag }}
+      arch: ${{ inputs.arch }}
+      release: ${{ inputs.release }}
+  make5:
+    needs: make4
+    if: needs.make4.outputs.status == 'continue'
+    uses: ./.github/workflows/make.yml
+    secrets: inherit
+    with:
+      tag: ${{ inputs.tag }}
+      arch: ${{ inputs.arch }}
+      release: ${{ inputs.release }}
+  make6:
+    needs: make5
+    if: needs.make5.outputs.status == 'continue'
+    uses: ./.github/workflows/make.yml
+    secrets: inherit
+    with:
+      tag: ${{ inputs.tag }}
+      arch: ${{ inputs.arch }}
+      release: ${{ inputs.release }}

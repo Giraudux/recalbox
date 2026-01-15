@@ -70,10 +70,10 @@ jobs:
       continue-on-error: true
       run: |
         echo "::add-mask::${{ secrets.MASK_0 }}"
-        wget --quiet "${{ secrets.BR2_BACKUP_SITE }}/ccache/recalbox-${{ inputs.arch }}-ccache.tar.zst"
+        wget --quiet "${{ secrets.BR2_BACKUP_SITE }}/ccache/ccache-${{ inputs.arch }}.tar.zst"
     - uses: actions/upload-artifact@v4
       if: inputs.ccache && steps.download-ccache.outcome == 'success'
       with:
-        name: recalbox-${{ inputs.arch }}-ccache
-        path: recalbox-${{ inputs.arch }}-ccache.tar.zst
+        name: ccache-${{ inputs.arch }}
+        path: ccache-${{ inputs.arch }}.tar.zst
         compression-level: 0

@@ -1,16 +1,13 @@
 name: release
 
 on:
-  workflow_call:
-    inputs:
-      tag:
-        type: string
-        default: ''
+  schedule:
+    - cron: '10 * * * 0'
   workflow_dispatch: 
     inputs:
       tag:
         type: string
-        default: ''
+        required: true
       arch_odroidgo2:
         type: boolean
         default: false
@@ -33,37 +30,44 @@ on:
         type: boolean
         default: true
 
+concurrency: 
+  group: release
+
 jobs:
-  tag:
+  release:
     runs-on: ubuntu-slim
     outputs:
-      tag: ${{ steps.tag.outputs.tag }}
+      tag: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || steps.tag.outputs.tag }}
+      new: ${{ steps.new.outputs.new }}
     steps:
-    - id: tag
+    - name: "Return tag"
+      if: github.event_name != 'workflow_dispatch'
+      id: tag
       run: |
         set -x
-        if [ -z "${{ inputs.tag }}" ]
-        then
-          tag=$(curl -s https://gitlab.com/api/v4/projects/2396494/releases/ | jq -r .[0].tag_name)
-          echo "tag=$tag" >> "$GITHUB_OUTPUT"
-        else
-          echo "tag=${{ inputs.tag }}" >> "$GITHUB_OUTPUT"
-        fi
+        tag=$(curl -s https://gitlab.com/api/v4/projects/2396494/releases/ | jq -r 'del(.[] | select(.tag_name | contains("alpha")))[0].tag_name')
+        echo "tag=$tag" >> "$GITHUB_OUTPUT"
     - name: "Checkout"
       uses: actions/checkout@v6
     - name: "Create release"
+      id: new
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
         set -x
-        tag=$(gh release list --json tagName --jq '.[]|select(.tagName=="${{ steps.tag.outputs.tag }}")')
-        if [ -z "$tag" ]
+        gl_tag=${{ github.event_name == 'workflow_dispatch' && inputs.tag || steps.tag.outputs.tag }}
+        gh_tag=$(gh release list --json tagName --jq ".[]|select(.tagName==\"$gl_tag\")")
+        if [ -z "$gh_tag" ]
         then
-          wget "https://gitlab.com/recalbox/recalbox/-/raw/${{ steps.tag.outputs.tag }}/RELEASE-NOTES.md"
-          gh release create "${{ steps.tag.outputs.tag }}" --notes-file=RELEASE-NOTES.md
+          wget "https://gitlab.com/recalbox/recalbox/-/raw/$gl_tag/RELEASE-NOTES.md"
+          gh release create "$gl_tag" --notes-file=RELEASE-NOTES.md
+          echo "new=true" >> "$GITHUB_OUTPUT"
+        else
+          echo "new=false" >> "$GITHUB_OUTPUT"
         fi
   build:
-    needs: tag
+    if: github.event_name != 'schedule' || needs.release.outputs.new == 'true'
+    needs: release
     strategy:
       max-parallel: 2
       matrix:
@@ -79,5 +83,5 @@ jobs:
     uses: ./.github/workflows/build.yml
     secrets: inherit
     with:
-      tag: ${{ needs.tag.outputs.tag }}
+      tag: ${{ needs.release.outputs.tag }}
       arch: ${{ matrix.arch }}
